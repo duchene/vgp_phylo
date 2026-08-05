@@ -62,10 +62,26 @@ have identical 564-tip sets, and every namemap accession is present in both.
 
 ## Running metrics
 
-Production run — everything, all loci, in two phases with a merge and summary:
+**Production run — use the detached launcher.** It survives SSH disconnects,
+terminal closes, and any editor/agent session ending, because `setsid` puts it in a
+new session and process group and `nohup` ignores SIGHUP:
 
 ```bash
-scripts/run_full.sh 32
+scripts/run_detached.sh 12        # cores; writes logs/run_full.pid
+scripts/run_status.sh             # progress, any time, from any shell
+kill $(cat logs/run_full.pid)     # stop it
+```
+
+`run_full.sh` holds an `flock` single-instance lock, so a second launch refuses
+rather than corrupting output — two runs appending to the same `results/metrics/*.tsv`
+would interleave mid-line. Everything is resumable at block granularity, so if a run
+does die, relaunching picks up where it stopped and cached IQ-TREE results replay at
+~440 loci/s.
+
+Run it in the foreground only if you will stay connected:
+
+```bash
+scripts/run_full.sh 12
 ```
 
 Or piecemeal:
@@ -82,12 +98,24 @@ Parallelism has two axes: `run_metric.R` forks over loci within one metric, and
 state and no output file, so adding one is free. Total load is roughly
 `jobs x cores`.
 
-**This machine is shared** (64 cores, ~25 logged-in users). Measured baseline load
-from other users is ~6.5 cores — mostly another user's java/iqtree2 and a codeml run
-— with 226 GB of 251 GB RAM free. 32 cores is a good-citizen ceiling: it takes total
-demand to ~60% and leaves ~26 cores free. That is what `DEFAULTS` encodes
-(`metric_jobs = 4` x `cores = 8`). Memory is not a constraint — each worker holds one
-alignment and tree.
+**This machine is shared** and `nproc` is misleading. It reports 64, but the CPU is a
+32-**physical**-core Threadripper PRO 5975WX with 2-way SMT; compute-bound work gains
+little from an SMT sibling. With ~25 logged-in users and a measured ~6.5 cores of
+other people's load (java/iqtree2, codeml), the usable budget is well under 32.
+
+Note that a large share of the competing load is often **your own** other analyses
+(`codeml`, `power_bootstrap`), not collaborators — check with `run_status.sh` and
+`top` before assuming otherwise.
+
+**More cores buys much less than you would expect.** IQ-TREE likelihood is
+memory-bandwidth-bound: a 156-tip x 2500-site HKY+G4 partial-likelihood array is
+~48 MB, already larger than one 32 MiB L3 instance (128 MiB total across 4
+instances, 8 physical cores sharing each). Concurrent jobs thrash L3 and fall back to
+DRAM. Measured: scaling 12 -> 32 workers raised throughput only **1.16x**
+(size-normalised) — per-core efficiency fell 57% — and the *same* locus went from
+1.0s to 5.3s. **16 or fewer cores is the sweet spot**; beyond that you mostly slow
+down your colleagues. RAM is never the constraint (226 GB free; each worker holds one
+alignment and tree).
 
 Because `scf_own` is ~60% of the total work, give it everything first rather than
 splitting evenly; see the recommended schedule in `metrics/README.md`.
@@ -104,7 +132,7 @@ Not tracked, and why:
 | `data/loci/`, `data/gene_trees/` | 31 GB | extract `singlecopy.tar.gz` |
 | `data/metadata/` | 3.4 MB | ships with the archive |
 | `data/manifest.tsv` | 8.4 MB | `scripts/build_manifest.sh 32` (~16s) |
-| `results/` | ~86 MB and growing | `scripts/run_full.sh 32` (~2.5h) |
+| `results/` | ~86 MB and growing | `scripts/run_detached.sh 12` |
 | `logs/` | — | regenerated per run |
 
 ⚠ **`~/scripts` is not under version control.** Four metrics source it via

@@ -503,7 +503,8 @@ the total, so an even `--all` split starves it; run it alone with everything fir
 then the rest:
 
 ```bash
-scripts/run_full.sh 32        # does both phases, merges, prints a summary
+scripts/run_detached.sh 12    # both phases, merge, summary; survives disconnects
+scripts/run_status.sh         # check progress at any time
 ```
 
 Phase 2 re-runs `scf_own` as a no-op (resume skips completed loci) and `subst_model`

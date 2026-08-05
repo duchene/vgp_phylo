@@ -12,9 +12,20 @@ set -uo pipefail            # NOT -e: a single failing metric must not abort the
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export VGP_PHYLO_ROOT="$ROOT"
-CORES="${1:-32}"
+CORES="${1:-16}"
 LOG="$ROOT/logs/run_full.log"
 mkdir -p "$ROOT/logs"
+
+# Single-instance lock. Two concurrent runs would both append to the same
+# results/metrics/*.tsv files, interleaving mid-line and silently corrupting them.
+exec 9>"$ROOT/logs/.run_full.lock"
+if ! flock -n 9; then
+  echo "ERROR: another run_full.sh is already running (holder PID: $(cat "$ROOT/logs/run_full.pid" 2>/dev/null || echo unknown))." >&2
+  echo "       Check progress with scripts/run_status.sh, or stop it before relaunching." >&2
+  exit 1
+fi
+echo $$ > "$ROOT/logs/run_full.pid"
+trap 'rm -f "$ROOT/logs/run_full.pid"' EXIT
 
 say() { echo "[$(date -Is)] $*" | tee -a "$LOG"; }
 
@@ -26,8 +37,12 @@ Rscript "$ROOT/scripts/run_metric.R" --metric scf_own --cores "$CORES" >> "$ROOT
 rc=$?
 say "PHASE 1 done (exit $rc); rows=$(tail -n +2 "$ROOT/results/metrics/scf_own.tsv" 2>/dev/null | wc -l)"
 
-say "--- PHASE 2: all remaining metrics, 8 jobs x $((CORES/8)) cores ---"
-"$ROOT/scripts/run_metrics.sh" --all --jobs 8 --cores "$((CORES/8))" >> "$LOG" 2>&1
+# 2 cores per metric, as many concurrent metrics as the budget allows. Integer
+# division by a fixed job count silently under-used the budget for odd core counts.
+P2_CORES=2
+P2_JOBS=$(( CORES / P2_CORES )); [ "$P2_JOBS" -lt 1 ] && P2_JOBS=1
+say "--- PHASE 2: all remaining metrics, ${P2_JOBS} jobs x ${P2_CORES} cores ---"
+"$ROOT/scripts/run_metrics.sh" --all --jobs "$P2_JOBS" --cores "$P2_CORES" >> "$LOG" 2>&1
 say "PHASE 2 done"
 
 say "--- MERGE ---"

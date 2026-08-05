@@ -71,10 +71,22 @@ SPECIES_TREES <- c(
 ## label discrepancy turns up.
 TIP_ALIASES <- character(0)
 
-## This machine is shared -- other jobs run here. Keep defaults well below nproc.
+## Core budget. Two things make the naive reading of `nproc` wrong here:
+##
+## 1. nproc reports 64, but this is a 32-PHYSICAL-core Threadripper 5975WX with
+##    2-way SMT. Compute-bound work gets little from an SMT sibling, so the real
+##    ceiling is 32, not 64.
+## 2. IQ-TREE likelihood is memory-bandwidth-bound. A 156-tip x 2500-site HKY+G4
+##    partial-likelihood array is ~48 MB, which already exceeds one 32 MiB L3
+##    instance (128 MiB total, 4 instances, 8 physical cores each). Concurrent jobs
+##    therefore thrash L3 and stream from DRAM.
+##
+## Measured consequence: scaling 12 -> 32 workers multiplied throughput by only
+## 1.16x (size-normalised), i.e. per-core efficiency fell 57%. The same locus took
+## 1.0s at 12-core load and 5.3s at 32-core load. Do not assume more cores helps.
 DEFAULTS <- list(
   cores            = 8L,    # cores used *within* one metric
-  metric_jobs      = 4L,    # metrics run concurrently (total load ~ cores*jobs)
+  metric_jobs      = 2L,    # metrics run concurrently (total load ~ cores*jobs)
   block            = 2000L  # loci per output flush; also the resume granularity
 )
 
