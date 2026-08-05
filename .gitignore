@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------- input data --
+# 31 GB of alignments and gene trees. Distributed as singlecopy.tar.gz, never in git.
+data/loci/
+data/gene_trees/
+data/metadata/
+
+# Regenerable in ~16s: scripts/build_manifest.sh 32
+data/manifest.tsv
+
+# NOTE: data/species_trees/ IS tracked (76 KB). It is small, and it records the
+# human tip-label fix documented in README.md.
+
+# ------------------------------------------------------------------- outputs --
+# All regenerable from the data + code. results/ reaches ~86 MB before the merged
+# table is even written, and results/scf_tables/ holds 112k cached IQ-TREE runs.
+results/
+logs/
+
+# Figures are tracked by default -- delete this section if they get large.
+figures/*.pdf
+
+# ------------------------------------------------------------------------- R --
+.Rhistory
+.Rapp.history
+.RData
+.RDataTmp
+.Ruserdata
+.Rproj.user/
+*.Rcheck/
+*-Ex.R
+
+# ------------------------------------------------------------- tooling-local --
+# Machine-specific Claude Code permissions; not shared.
+.claude/settings.local.json
+
+# ---------------------------------------------------------------------- misc --
+*.tar.gz
+.DS_Store
+core.*
