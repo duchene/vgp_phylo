@@ -19,17 +19,20 @@ PATHS <- list(
   figures       = file.path(VGP_ROOT, "figures")
 )
 
-## Where metric definitions are looked up, in order. The project directory holds
-## metrics specific to this dataset; the shared directory holds ones reused across
-## projects. First match wins, so a project metric can shadow a shared one.
+## Where metric definitions are looked up. Only the in-repo directory by default,
+## so a checkout behaves identically on any machine. Set PHYLO_METRICS_SHARED to
+## prepend an external directory if you want to develop a metric outside the repo;
+## anything relied on for published results belongs in metrics/.
 METRIC_PATH <- c(
   file.path(VGP_ROOT, "metrics"),
-  Sys.getenv("PHYLO_METRICS_SHARED", unset = "/home/davidd/scripts/metrics")
+  Sys.getenv("PHYLO_METRICS_SHARED", unset = NA_character_)
 )
+METRIC_PATH <- METRIC_PATH[!is.na(METRIC_PATH) & nzchar(METRIC_PATH)]
 
-## Reusable single-function scripts (~/scripts), sourced by name via
-## source_shared(). Kept separate from METRIC_PATH: these are helpers, not metrics.
-SHARED_SCRIPTS <- Sys.getenv("PHYLO_SCRIPTS_SHARED", unset = "/home/davidd/scripts")
+## NOTE: this project is self-contained. Helper functions that used to be sourced
+## from ~/scripts at run time are now vendored verbatim in scripts/lib/vendored.R,
+## with their upstream md5s recorded, so results never depend on an unversioned
+## directory outside the repository.
 
 ## External binaries.
 IQTREE <- Sys.getenv("IQTREE", unset = "/home/davidd/iqtree3")
@@ -90,4 +93,5 @@ DEFAULTS <- list(
   block            = 2000L  # loci per output flush; also the resume granularity
 )
 
-PHYLOMAD_DIR <- Sys.getenv("PHYLOMAD_DIR", unset = "/home/davidd/phylomad")
+## (PHYLOMAD_DIR removed: the phylomad_adequacy metric was dropped as redundant, so
+## nothing here reads ~/phylomad any more. See metrics/README.md.)

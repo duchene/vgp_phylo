@@ -8,8 +8,9 @@
 ## `mean_branch_length` (total / number of branches) as the rate proxy, or
 ## `mean_root_to_tip` if a per-lineage depth is wanted. `total_length` is reported
 ## only so the normalisation can be audited.
+##
+## Uses pathnode(), vendored in scripts/lib/vendored.R from ~/scripts/pathnode.R.
 
-source_shared("pathnode")
 
 register_metric(
   name = "tree_length",

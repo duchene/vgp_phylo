@@ -1,7 +1,6 @@
 ## Stemminess: share of total tree length carried by internal branches.
-## Wraps ~/scripts/stemmy.R.
+## Uses stemmy(), vendored in scripts/lib/vendored.R from ~/scripts/stemmy.R.
 
-source_shared("stemmy")
 
 register_metric(
   name = "stemminess",

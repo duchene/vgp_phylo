@@ -172,20 +172,24 @@ Not tracked, and why:
 | `results/` | ~210 MB | `scripts/run_detached.sh 12` then `scripts/make_figures.R` |
 | `logs/` | — | regenerated per run |
 
-⚠ **`~/scripts` is not under version control.** Four metrics source it via
-`source_shared()` (`stemmy`, `rtt.cov`, `pathnode`), so an unversioned edit there
-silently changes results here. Worth making it a repo of its own, given it is shared
-across projects.
+**The repository is self-contained.** Nothing is read from outside it at run time
+except the IQ-TREE binary. Three helper functions that used to be sourced live from
+the unversioned `~/scripts` (`pathnode`, `rtt.cov`, `stemmy`) are now vendored
+verbatim in `scripts/lib/vendored.R`, with their upstream md5s recorded in the header.
+`~/scripts` is untouched and remains the upstream — re-copy and update the md5 if you
+improve one there.
+
+Verified by making `~/scripts` unreadable: all 11 metrics still load and run, and the
+three affected metrics reproduce their pre-vendoring values exactly.
 
 ## Dependencies
 
 - R packages: ape, phangorn, TreeDist, phytools, seqinr, **PhyInformR 1.0**.
   PhyInformR is archived from CRAN; it was installed from the CRAN archive plus
   gplots, geiger, gridExtra, hexbin, PBSmodelling.
-- `~/iqtree3` (IQ-TREE 3.1.3). Requires `--seqtype DNA`; auto-detection fails on
-  these alignments.
-- `~/scripts` — reusable single-function scripts shared with other projects,
-  loaded by name via `source_shared()`.
+- `~/iqtree3` (IQ-TREE 3.1.3) — the only external runtime dependency. Override with
+  `IQTREE=/path/to/iqtree`. Requires `--seqtype DNA`; auto-detection fails on these
+  alignments.
 
 ## Status
 

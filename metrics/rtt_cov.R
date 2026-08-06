@@ -1,8 +1,7 @@
 ## Coefficient of variation of root-to-tip distances in the locus's own tree.
-## Wraps ~/scripts/rtt.cov.R (which needs pathnode.R and phangorn::midpoint).
+## Uses pathnode(), vendored in scripts/lib/vendored.R from ~/scripts/pathnode.R.
 
 suppressPackageStartupMessages(library(phangorn))
-source_shared("pathnode", "rtt.cov")
 
 register_metric(
   name = "rtt_cov",

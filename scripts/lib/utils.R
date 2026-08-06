@@ -2,23 +2,6 @@
 
 suppressPackageStartupMessages(library(ape))
 
-# ------------------------------------------------------------ shared scripts ----
-
-#' Source one or more reusable function scripts from SHARED_SCRIPTS (~/scripts),
-#' by bare name. Idempotent: a script already sourced in this process is skipped,
-#' so metrics can declare their dependencies without repeated file IO.
-.sourced <- new.env(parent = emptyenv())
-source_shared <- function(...) {
-  for (nm in c(...)) {
-    if (exists(nm, envir = .sourced)) next
-    p <- file.path(SHARED_SCRIPTS, paste0(nm, ".R"))
-    if (!file.exists(p)) stop("shared script not found: ", p)
-    sys.source(p, envir = globalenv())
-    assign(nm, TRUE, envir = .sourced)
-  }
-  invisible(NULL)
-}
-
 # ---------------------------------------------------------------- locus IO ----
 
 #' Accession from a gene-tree / alignment label.
