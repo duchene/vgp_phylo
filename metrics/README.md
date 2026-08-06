@@ -485,9 +485,14 @@ small loci legitimately fail the minimum-taxa guards (`delta_plot` and `qirp_own
 need ≥4 tips, `treedist_species` needs ≥4 taxa shared with the species tree). Read
 the messages before assuming otherwise.
 
-**Status.** All 11 metrics run clean on a 187-locus sample spanning every clade
-(0 errors), including trees up to 557 tips. A full run over all 112,199 loci is
-**in progress** — see `logs/run_full.log`. Update this line with the outcome.
+**Status: complete.** All 11 metrics computed for all **112,199 loci with zero
+errors**. Actual wall clock ~9h on 12 cores (vs ~7h predicted), dominated by
+`scf_own`. `results/locus_metrics.tsv` is 112,199 x 64 with only 8 NAs, all in
+`qirp_own.qirp_var_rel` where the variance was degenerate.
+
+For locus selection see `scripts/make_figures.R` and the figure guide in the
+top-level README. The governing caveat: **clade explains 21-69% of every metric**
+(R² = 0.71 for PC1), so loci must be ranked within clade, never globally.
 
 **Measured budget** for all 112,199 loci, extrapolated from that sample:
 

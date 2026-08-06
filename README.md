@@ -16,8 +16,11 @@ scripts/                               drivers; scripts/lib/ holds shared helper
 scripts/run_full.sh                    production run: everything, two phases
 results/metrics/<metric>.tsv           one output file per metric
 results/scf_tables/<tag>_m<model>_q<n>/  cached IQ-TREE runs (the dominant cost)
-results/locus_metrics.tsv              merged wide table
-logs/  figures/
+results/locus_metrics.tsv              merged wide table (112,199 x 64)
+results/locus_quality.tsv              per-locus composite quality + within-clade ranks
+scripts/make_figures.R                 summary figures for locus selection
+figures/fig1..fig5                     PDF (publication) + PNG (viewing)
+logs/
 ```
 
 Loci are grouped by the **ancestral reference genome** they were called against
@@ -120,6 +123,40 @@ alignment and tree).
 Because `scf_own` is ~60% of the total work, give it everything first rather than
 splitting evenly; see the recommended schedule in `metrics/README.md`.
 
+## Assessing which loci are best
+
+```bash
+Rscript scripts/make_figures.R      # ~1.5 min; writes figures/ and results/locus_quality.tsv
+```
+
+| Figure | Shows |
+|---|---|
+| `fig1_clade_confound` | variance in each metric explained by clade — **read this first** |
+| `fig2_metric_redundancy` | clustered Spearman correlations; which metrics are near-duplicates |
+| `fig3_pca_axes` | scree + loadings on PC1–PC4 |
+| `fig4_tradeoff` | six density panels showing metrics disagree about what "good" means |
+| `fig5_locus_quality` | composite score, by lineage, standardisation check, selection |
+
+**The governing result: clade explains 21–69% of each metric, and R² = 0.71 for PC1.**
+Loci therefore cannot be ranked globally — a global ranking mostly recovers which
+ancestral reference the locus came from. Everything in `locus_quality.tsv` is
+standardised **within clade** for this reason.
+
+**The trade-off is real, not noise.** Long branches buy informative sites
+(ρ = +0.62) and predicted power (QIRP, ρ = +0.70) but cost per-site concordance
+(sCF, ρ = −0.72). Short branches give clean sites but unresolved topologies
+(higher CID). No single metric identifies "the best loci"; the composite is one
+defensible compromise, not the answer.
+
+`locus_quality.tsv` columns: `quality` (mean of 8 signed within-clade robust
+z-scores), `rank_within_clade`, `good_on_all_axes` (beats its clade median on all 8
+— 3,111 loci), plus each component z-score. **Weights are equal by default; change
+them in `scripts/make_figures.R`.**
+
+⚠ One axis is circular for some purposes: `CID vs species tree` rewards agreement
+with the ASTRAL tree. If the goal is to *infer* that tree, drop it from the
+composite — the code makes this a one-line change.
+
 ## What is versioned, and what is not
 
 Tracked: all code, config, both READMEs, and `data/species_trees/` (76 KB — it
@@ -132,7 +169,7 @@ Not tracked, and why:
 | `data/loci/`, `data/gene_trees/` | 31 GB | extract `singlecopy.tar.gz` |
 | `data/metadata/` | 3.4 MB | ships with the archive |
 | `data/manifest.tsv` | 8.4 MB | `scripts/build_manifest.sh 32` (~16s) |
-| `results/` | ~86 MB and growing | `scripts/run_detached.sh 12` |
+| `results/` | ~210 MB | `scripts/run_detached.sh 12` then `scripts/make_figures.R` |
 | `logs/` | — | regenerated per run |
 
 ⚠ **`~/scripts` is not under version control.** Four metrics source it via
@@ -152,10 +189,10 @@ across projects.
 
 ## Status
 
-11 metrics, all running clean on a 187-locus sample spanning every clade (0 errors),
-including trees up to 557 tips. Nothing has been run at full scale yet; the measured
-budget is ~7h at 12 cores / ~3h at 32 for everything. See `metrics/README.md` for
-per-metric detail, the budget table, and open review flags.
+**Complete.** All 11 metrics computed for all 112,199 loci with **zero errors**;
+merged table and summary figures written. Wall clock was ~9h on 12 cores, dominated
+by `scf_own`. See `metrics/README.md` for per-metric detail and the remaining review
+flags.
 
 Dropped after review, each for a measured reason: `scf_species` and `qirp_species`
 (needed branch lengths fitted to the ASTRAL topology, which would be a poor tree);
