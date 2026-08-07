@@ -11,13 +11,19 @@ data/manifest.tsv
 # human tip-label fix documented in README.md.
 
 # ------------------------------------------------------------------- outputs --
-# All regenerable from the data + code. results/ reaches ~86 MB before the merged
-# table is even written, and results/scf_tables/ holds 112k cached IQ-TREE runs.
-results/
-logs/
+# Working outputs are NOT tracked: results/ holds 120 MB of full-precision tables
+# plus results/scf_tables/ (1.2 GB across 112k cached IQ-TREE runs).
+# Note `results/*` rather than `results/`: git will not look inside an excluded
+# DIRECTORY, so the negation below would never be reached.
+results/*
+!results/published/
 
-# Figures are tracked by default -- delete this section if they get large.
-figures/*.pdf
+# logs/ is transient, except the provenance record of the production run.
+logs/*
+!logs/run_full.log
+
+# Figures are tracked in both formats: PNG for viewing, PDF (vector) for
+# publication. ~1.2 MB total.
 
 # ------------------------------------------------------------------------- R --
 .Rhistory

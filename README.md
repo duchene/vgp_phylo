@@ -16,8 +16,9 @@ scripts/                               drivers; scripts/lib/ holds shared helper
 scripts/run_full.sh                    production run: everything, two phases
 results/metrics/<metric>.tsv           one output file per metric
 results/scf_tables/<tag>_m<model>_q<n>/  cached IQ-TREE runs (the dominant cost)
-results/locus_metrics.tsv              merged wide table (112,199 x 64)
-results/locus_quality.tsv              per-locus composite quality + within-clade ranks
+results/locus_metrics.tsv              merged wide table (112,199 x 64), full precision, LOCAL
+results/locus_quality.tsv              per-locus composite quality + ranks, LOCAL
+results/published/                     the committed result set -- see below
 scripts/make_figures.R                 summary figures for locus selection
 figures/fig1..fig5                     PDF (publication) + PNG (viewing)
 logs/
@@ -157,6 +158,43 @@ them in `scripts/make_figures.R`.**
 with the ASTRAL tree. If the goal is to *infer* that tree, drop it from the
 composite — the code makes this a one-line change.
 
+## Published results (in this repository)
+
+`results/published/` is committed, so the results are usable without re-running
+anything:
+
+| File | Size | Contents |
+|---|---|---|
+| `locus_metrics.tsv.gz` | 21 MB | all 112,199 loci x 64 metric columns |
+| `locus_quality.tsv.gz` | 5.5 MB | composite quality, within-clade ranks, component z-scores |
+| `data_dictionary.tsv` | 6 KB | every column: meaning, which direction is better, caveats |
+| `summary_stats.tsv` | 6 KB | n / NAs / mean / sd / quantiles per column |
+
+Read them straight from the gzip — no need to decompress:
+
+```r
+d <- read.delim(gzfile("results/published/locus_metrics.tsv.gz"))
+```
+```python
+d = pd.read_csv("results/published/locus_metrics.tsv.gz", sep="\t")
+```
+
+**Start with `data_dictionary.tsv`.** Several columns are deliberately *not*
+comparable across loci (`total_length`, `n_patterns`) or have no defensible "better"
+direction (`scf_mean`, `entropy_mean`), and the dictionary says which.
+
+Regenerate with `Rscript scripts/export_results.R` (~30 s). Two things it does:
+
+- **Rounds to 6 significant digits.** R writes 15, which for concordance factors and
+  probabilities is noise past the seventh. This halves the gzipped size (39 -> 21 MB)
+  for a maximum relative change of 5x10^-6 (verified).
+- **Separates published from working.** The full-precision `results/*.tsv` stay
+  local, so regenerating them never produces a noisy diff.
+
+⚠ These files sit in git history permanently. Re-committing a regenerated copy adds
+another ~27 MB each time. If the metrics get revised repeatedly, attach the tables to
+a GitHub Release instead and drop them from the tree.
+
 ## What is versioned, and what is not
 
 Tracked: all code, config, both READMEs, and `data/species_trees/` (76 KB — it
@@ -169,8 +207,12 @@ Not tracked, and why:
 | `data/loci/`, `data/gene_trees/` | 31 GB | extract `singlecopy.tar.gz` |
 | `data/metadata/` | 3.4 MB | ships with the archive |
 | `data/manifest.tsv` | 8.4 MB | `scripts/build_manifest.sh 32` (~16s) |
-| `results/` | ~210 MB | `scripts/run_detached.sh 12` then `scripts/make_figures.R` |
-| `logs/` | — | regenerated per run |
+| `results/metrics/`, `results/*.tsv` | ~290 MB | `scripts/run_detached.sh 12` then `scripts/make_figures.R` |
+| `results/scf_tables/` | 1.2 GB | cached IQ-TREE runs, 112k files |
+| `logs/` (except `run_full.log`) | — | regenerated per run |
+
+Tracked results: `results/published/` (27 MB), `figures/` as PNG + PDF (1.2 MB), and
+`logs/run_full.log` as the provenance record of the production run.
 
 **The repository is self-contained.** Nothing is read from outside it at run time
 except the IQ-TREE binary. Three helper functions that used to be sourced live from

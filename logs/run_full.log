@@ -1,0 +1,66 @@
+[2026-08-05T12:23:30+02:00] === FULL RUN START: 112199 loci, 32 cores ===
+[2026-08-05T12:23:30+02:00] model: HKY+G4
+[2026-08-05T12:23:30+02:00] --- PHASE 1: scf_own on 32 cores ---
+[2026-08-05T13:29:25+02:00] === FULL RUN START: 112199 loci, 16 cores ===
+[2026-08-05T13:29:25+02:00] model: HKY+G4
+[2026-08-05T13:29:25+02:00] --- PHASE 1: scf_own on 16 cores ---
+[2026-08-05T22:12:08+02:00] === FULL RUN START: 112199 loci, 12 cores ===
+[2026-08-05T22:12:08+02:00] model: HKY+G4
+[2026-08-05T22:12:08+02:00] --- PHASE 1: scf_own on 12 cores ---
+[2026-08-06T01:45:16+02:00] PHASE 1 done (exit 0); rows=112199
+[2026-08-06T01:45:16+02:00] --- PHASE 2: all remaining metrics, 6 jobs x 2 cores ---
+running 11 metric(s), 6 at a time, 2 cores each
+OK   scf_own
+OK   stemminess
+OK   subst_model
+OK   rtt_cov
+OK   tree_length
+OK   aitchison_basefreq
+OK   titv
+OK   treedist_species
+OK   site_entropy
+OK   delta_plot
+Terminated
+FAIL qirp_own  (see logs/qirp_own.log)
+logs in /home/davidd/vgp_phylo/logs/
+[2026-08-06T06:03:32+02:00] --- FINISH RUN: sequential, 12 cores each, target 112199 loci ---
+[2026-08-06T06:03:35+02:00]   aitchison_basefreq: already complete (112199 rows), skipping
+[2026-08-06T06:03:35+02:00]   delta_plot: already complete (112199 rows), skipping
+[2026-08-06T06:03:35+02:00]   qirp_own: 42000/112199 -- running on 12 cores
+[2026-08-06T07:16:50+02:00]   qirp_own: done, now 112199 rows
+[2026-08-06T07:16:50+02:00]   rtt_cov: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00]   scf_own: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00]   site_entropy: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00]   stemminess: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00]   subst_model: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00]   titv: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00]   tree_length: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00]   treedist_species: already complete (112199 rows), skipping
+[2026-08-06T07:16:51+02:00] --- MERGE ---
+aitchison_basefreq         112199 rows,  9 cols, 0 errors
+delta_plot                 112199 rows,  5 cols, 0 errors
+qirp_own                   112199 rows,  7 cols, 0 errors
+rtt_cov                    112199 rows,  3 cols, 0 errors
+scf_own                    112199 rows,  7 cols, 0 errors
+site_entropy               112199 rows, 10 cols, 0 errors
+stemminess                 112199 rows,  4 cols, 0 errors
+subst_model                112199 rows,  2 cols, 0 errors
+titv                       112199 rows,  4 cols, 0 errors
+tree_length                112199 rows,  6 cols, 0 errors
+treedist_species           112199 rows,  3 cols, 0 errors
+keeping 112199 of 112199 loci with >= 1 metric computed
+wrote /home/davidd/vgp_phylo/results/locus_metrics.tsv (112199 loci x 64 columns)
+[2026-08-06T07:17:20+02:00] MERGE done
+[2026-08-06T07:17:20+02:00] === PER-METRIC SUMMARY ===
+aitchison_basefreq       rows=112199  errors=0
+delta_plot               rows=112199  errors=0
+qirp_own                 rows=112199  errors=0
+rtt_cov                  rows=112199  errors=0
+scf_own                  rows=112199  errors=0
+site_entropy             rows=112199  errors=0
+stemminess               rows=112199  errors=0
+subst_model              rows=112199  errors=0
+titv                     rows=112199  errors=0
+treedist_species         rows=112199  errors=0
+tree_length              rows=112199  errors=0
+[2026-08-06T07:17:22+02:00] === FULL RUN COMPLETE ===
