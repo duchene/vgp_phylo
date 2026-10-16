@@ -454,11 +454,19 @@ any need revisiting.
 
 ## Running
 
+On GenomeDK, submit through Slurm (see the top-level README, "Running metrics"):
+
 ```bash
-scripts/run_metrics.sh --list                      # what's registered
-scripts/run_metrics.sh --all --jobs 5 --cores 6    # 5 metrics at once, 6 cores each
-scripts/run_metrics.sh scf_own -- --clade AnuraAnc1 --limit 50   # scope down
-Rscript scripts/merge_metrics.R                    # join into results/locus_metrics.tsv
+scripts/submit_metrics.sh --all --merge                     # every metric, all loci
+scripts/submit_metrics.sh --all --loci data/panel_187.tsv   # the pilot panel
+```
+
+Inside an interactive `srun` allocation the direct drivers still work:
+
+```bash
+pixi run scripts/run_metrics.sh --list                      # what's registered
+pixi run scripts/run_metrics.sh scf_own -- --clade AnuraAnc1 --limit 50   # scope down
+pixi run Rscript scripts/merge_metrics.R                    # join into results/locus_metrics.tsv
 ```
 
 Runs are resumable (per-locus rows, block-flushed) and per-locus seeds are
@@ -503,7 +511,8 @@ top-level README. The governing caveat: **clade explains 21-69% of every metric*
 | `treedist_species` | ~0.7h | ~0.3h |
 | all others combined | ~1.2h | ~0.5h |
 
-**Recommended schedule**, wrapped up in `scripts/run_full.sh`. `scf_own` is ~60% of
+**Recommended schedule on the old workstation** (historical; on GenomeDK,
+`submit_metrics.sh` handles the ordering), wrapped up in `scripts/run_full.sh`. `scf_own` is ~60% of
 the total, so an even `--all` split starves it; run it alone with everything first,
 then the rest:
 

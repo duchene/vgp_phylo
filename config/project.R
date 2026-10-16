@@ -1,6 +1,9 @@
 ## Central paths and defaults. Sourced by every script; edit here, not in scripts.
 
-VGP_ROOT <- Sys.getenv("VGP_PHYLO_ROOT", unset = "/home/davidd/vgp_phylo")
+## The root defaults to the checkout this file lives in (config/..), so the repo
+## works wherever it is cloned. VGP_PHYLO_ROOT overrides it.
+VGP_ROOT <- Sys.getenv("VGP_PHYLO_ROOT",
+                       unset = normalizePath(file.path(dirname(sys.frame(1)$ofile), "..")))
 
 PATHS <- list(
   root          = VGP_ROOT,
@@ -13,7 +16,9 @@ PATHS <- list(
   ## Cached IQ-TREE per-branch concordance tables. IQ-TREE dominates the runtime
   ## of this analysis, so several metrics read one cached table per locus rather
   ## than each re-running it.
-  scf_cache     = file.path(VGP_ROOT, "results", "scf_tables"),
+  ## VGP_SCF_CACHE redirects it, e.g. to force fresh IQ-TREE runs on a panel
+  ## without touching (or replaying) the production cache.
+  scf_cache     = Sys.getenv("VGP_SCF_CACHE", unset = file.path(VGP_ROOT, "results", "scf_tables")),
   merged        = file.path(VGP_ROOT, "results", "locus_metrics.tsv"),
   logs          = file.path(VGP_ROOT, "logs"),
   figures       = file.path(VGP_ROOT, "figures")
@@ -34,8 +39,11 @@ METRIC_PATH <- METRIC_PATH[!is.na(METRIC_PATH) & nzchar(METRIC_PATH)]
 ## with their upstream md5s recorded, so results never depend on an unversioned
 ## directory outside the repository.
 
-## External binaries.
-IQTREE <- Sys.getenv("IQTREE", unset = "/home/davidd/iqtree3")
+## External binaries. Default is the project's shared IQ-TREE 3.1.4 install on
+## GenomeDK (shared_software/iqtree3/README). The original production run used
+## 3.1.3; see README.md, "Reproducibility check after the move".
+IQTREE <- Sys.getenv("IQTREE",
+  unset = "/faststorage/project/DeiC-KU-L04/shared_software/iqtree3/iqtree-3.1.4-Linux/bin/iqtree3")
 
 ## --scfl is likelihood-based, so it REQUIRES a substitution model. The model is
 ## held fixed across all loci rather than selected per locus: otherwise sCF would

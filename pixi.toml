@@ -1,0 +1,42 @@
+## R environment for vgp_phylo on GenomeDK.
+##
+##   export PATH=/faststorage/project/DeiC-KU-L04/shared_software/pixi/current/bin:$PATH
+##   export PIXI_CACHE_DIR=/faststorage/project/DeiC-KU-L04/shared_software/pixi/cache
+##   sbatch scripts/setup_env.sh          # pixi install + CRAN-only packages, on a compute node
+##   pixi run Rscript scripts/run_metric.R --list
+##
+## Everything comes from conda-forge except PBSmodelling (not packaged there) and
+## PhyInformR 1.0 (archived from CRAN), which the `install-cran` task builds from
+## source into the environment's own library -- see scripts/install_cran.R.
+## IQ-TREE is not in here: it is the project's shared install (config/project.R).
+
+[workspace]
+name = "vgp_phylo"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+r-base = "4.4.*"
+# used directly
+r-ape = "*"
+r-phangorn = "*"
+r-treedist = "*"
+# PhyInformR 1.0 imports (its DESCRIPTION), minus PBSmodelling
+r-phytools = "*"
+r-gplots = "*"
+r-rcolorbrewer = "*"
+r-foreach = "*"
+r-iterators = "*"
+r-geiger = "*"
+r-doparallel = "*"
+r-gridextra = "*"
+r-hexbin = "*"
+r-ggplot2 = "*"
+# PBSmodelling: its XML import, and its SystemRequirements (BWidget)
+r-xml = "*"
+bwidget = "*"
+# cairo PNG output in scripts/make_figures.R
+cairo = "*"
+
+[tasks]
+install-cran = "Rscript scripts/install_cran.R"

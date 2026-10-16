@@ -11,6 +11,8 @@
 ##   scripts/run_metric.R --metric <name> [options]
 ##     --cores N        workers within this metric        (default DEFAULTS$cores)
 ##     --clade C        restrict to one clade             (repeatable, comma-separated)
+##     --loci FILE      restrict to the locus_ids in FILE (first column; header ok),
+##                      e.g. data/panel_187.tsv
 ##     --limit N        first N loci only (smoke testing)
 ##     --shard i/N      process shard i of N              (for splitting across hosts)
 ##     --block N        loci per flush / resume unit      (default DEFAULTS$block)
@@ -45,6 +47,7 @@ cores  <- as.integer(getopt("--cores", DEFAULTS$cores))
 block  <- as.integer(getopt("--block", DEFAULTS$block))
 limit  <- getopt("--limit"); limit <- if (is.null(limit)) NA_integer_ else as.integer(limit)
 clades <- getopt("--clade")
+loci_file <- getopt("--loci")
 shard  <- getopt("--shard")
 seed   <- as.integer(getopt("--seed", 1L))
 resume <- !hasflag("--no-resume")
@@ -62,6 +65,13 @@ if (!is.null(clades)) {
   bad <- setdiff(keep, unique(loci$clade))
   if (length(bad)) stop("unknown clade(s): ", paste(bad, collapse = ", "))
   loci <- loci[loci$clade %in% keep, , drop = FALSE]
+}
+if (!is.null(loci_file)) {
+  ids <- utils::read.delim(loci_file, header = FALSE, stringsAsFactors = FALSE)[[1]]
+  ids <- setdiff(trimws(ids), "locus_id")
+  bad <- setdiff(ids, loci$locus_id)
+  if (length(bad)) stop(length(bad), " locus_id(s) in ", loci_file, " not in the manifest, e.g. ", bad[1])
+  loci <- loci[loci$locus_id %in% ids, , drop = FALSE]
 }
 if (!is.null(shard)) {
   p <- as.integer(strsplit(shard, "/")[[1]])

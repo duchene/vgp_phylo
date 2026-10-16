@@ -43,3 +43,7 @@ logs/*
 *.tar.gz
 .DS_Store
 core.*
+
+# pixi environment (rebuilt from pixi.toml + pixi.lock by scripts/setup_env.sh);
+# pixi.lock IS tracked.
+.pixi/

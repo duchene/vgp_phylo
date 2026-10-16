@@ -2,6 +2,29 @@
 
 Per-locus phylogenetic metrics across 112,199 single-copy vertebrate loci.
 
+**Location.** The repository lives at `/faststorage/project/DeiC-KU-L04/vgp_phylo` on
+GenomeDK (moved from a 32-core workstation in October 2026). **All of its files —
+input data, results, logs, job scripts and the R environment — stay inside this
+directory**, not under the project's `<username>/` folders (an exception recorded in
+the project manual, `../README.md`). Every path below is relative to the repo root.
+
+## Setting up a fresh checkout
+
+```bash
+sbatch scripts/restore_data.sh   # data/ + working results/ from ../vgp_phylo_untracked.tar.gz (~8 min)
+sbatch scripts/setup_env.sh      # R environment in .pixi/ from pixi.toml + pixi.lock (~10 min)
+```
+
+Both run on a compute node (no heavy I/O or installs on the login node). The restore
+uses `--skip-old-files`, so it never overwrites anything already in the checkout —
+in particular the tracked, tip-label-fixed `data/species_trees/astralpro.l6.tre`.
+Afterwards, run any R script through the environment:
+
+```bash
+export PATH=/faststorage/project/DeiC-KU-L04/shared_software/pixi/current/bin:$PATH
+pixi run Rscript scripts/compare_panel.R
+```
+
 ## Layout
 
 ```
@@ -10,10 +33,13 @@ data/gene_trees/<clade>/*.treefile     112,199 IQ-TREE gene trees (1:1 with loci
 data/species_trees/                    astralpro.l6.tre, wastral.merged.nwk (564 tips each)
 data/metadata/                         astralinput.l6.mc.trees.namemap
 data/manifest.tsv                      locus_id, clade, ntips, nspecies, ncopies_max, nsites
+data/panel_187.tsv                     fixed 187-locus pilot panel (scripts/make_panel.R)
+pixi.toml, pixi.lock                   R environment (installed into .pixi/, untracked)
 config/project.R                       all paths, defaults, IQ-TREE settings
 metrics/                               one file per metric  -- see metrics/README.md
 scripts/                               drivers; scripts/lib/ holds shared helpers
-scripts/run_full.sh                    production run: everything, two phases
+scripts/submit_metrics.sh              Slurm submission: one job array per metric + gather
+scripts/slurm/                         array task and gather bodies
 results/metrics/<metric>.tsv           one output file per metric
 results/scf_tables/<tag>_m<model>_q<n>/  cached IQ-TREE runs (the dominant cost)
 results/locus_metrics.tsv              merged wide table (112,199 x 64), full precision, LOCAL
@@ -66,63 +92,48 @@ have identical 564-tip sets, and every namemap accession is present in both.
 
 ## Running metrics
 
-**Production run — use the detached launcher.** It survives SSH disconnects,
-terminal closes, and any editor/agent session ending, because `setsid` puts it in a
-new session and process group and `nohup` ignores SIGHUP:
+All compute goes through Slurm on the project account (`DeiC-KU-L04`). Each metric
+is one **job array**, one task per shard of loci, followed by a dependent **gather**
+job that checks every shard is present, headers agree and no locus is missing or
+duplicated, then writes `<outdir>/<metric>.tsv` atomically.
 
 ```bash
-scripts/run_detached.sh 12        # cores; writes logs/run_full.pid
-scripts/run_status.sh             # progress, any time, from any shell
-kill $(cat logs/run_full.pid)     # stop it
+scripts/submit_metrics.sh --all --merge            # production: all loci, 2000 per task
+scripts/submit_metrics.sh scf_own titv             # some metrics only
+scripts/submit_metrics.sh --all --loci data/panel_187.tsv   # -> results/panel_187/
+scripts/submit_metrics.sh --all --dry-run          # print the sbatch commands only
+squeue --me                                        # progress; logs/m_<metric>_<array>_<task>.out
 ```
 
-`run_full.sh` holds an `flock` single-instance lock, so a second launch refuses
-rather than corrupting output — two runs appending to the same `results/metrics/*.tsv`
-would interleave mid-line. Everything is resumable at block granularity, so if a run
-does die, relaunching picks up where it stopped and cached IQ-TREE results replay at
-~440 loci/s.
+Each task writes its own shard file (`<outdir>/shards/<metric>/shard_NNN.tsv`), so
+tasks never share an output file. Shards are round-robin over the manifest, and
+`run_metric.R` resumes within a shard at block granularity, so resubmitting a failed
+task (or the whole array) only redoes the missing loci. `scf_own` and `subst_model`
+share one cached IQ-TREE run per locus; when both are submitted, `subst_model` waits
+for `scf_own` so that work is not duplicated. Cached runs replay at ~440 loci/s.
 
-Run it in the foreground only if you will stay connected:
+Defaults are 4 cores, 8 GB and 4 h per task (`--cores`, `--mem`, `--time`).
+IQ-TREE likelihood here is memory-bandwidth-bound: on the old workstation 12 -> 32
+workers raised throughput only 1.16x. Prefer more array tasks over more cores per
+task; going past ~8 cores per task mostly wastes the shared billing hours.
+
+Inside an interactive allocation (`srun --account=DeiC-KU-L04 ...`) the original
+drivers still work directly:
 
 ```bash
-scripts/run_full.sh 12
+pixi run scripts/run_metrics.sh --list                     # what's registered
+pixi run Rscript scripts/run_metric.R --metric scf_own --cores 4 --clade AnuraAnc1
+pixi run Rscript scripts/merge_metrics.R
 ```
 
-Or piecemeal:
+`VGP_PHYLO_ROOT` overrides the repo root (default: the checkout containing
+`config/project.R`), `IQTREE` the binary, and `VGP_SCF_CACHE` the IQ-TREE cache
+directory — used for the reproducibility check below, so the panel gets fresh
+IQ-TREE runs instead of replaying the production cache.
 
-```bash
-scripts/run_metrics.sh --list                      # what's registered
-scripts/run_metrics.sh --all --jobs 8 --cores 4    # metrics in parallel, N cores each
-Rscript scripts/run_metric.R --metric scf_own --cores 32 --clade AnuraAnc1
-Rscript scripts/merge_metrics.R
-```
-
-Parallelism has two axes: `run_metric.R` forks over loci within one metric, and
-`run_metrics.sh` runs several metrics as independent processes. Metrics share no
-state and no output file, so adding one is free. Total load is roughly
-`jobs x cores`.
-
-**This machine is shared** and `nproc` is misleading. It reports 64, but the CPU is a
-32-**physical**-core Threadripper PRO 5975WX with 2-way SMT; compute-bound work gains
-little from an SMT sibling. With ~25 logged-in users and a measured ~6.5 cores of
-other people's load (java/iqtree2, codeml), the usable budget is well under 32.
-
-Note that a large share of the competing load is often **your own** other analyses
-(`codeml`, `power_bootstrap`), not collaborators — check with `run_status.sh` and
-`top` before assuming otherwise.
-
-**More cores buys much less than you would expect.** IQ-TREE likelihood is
-memory-bandwidth-bound: a 156-tip x 2500-site HKY+G4 partial-likelihood array is
-~48 MB, already larger than one 32 MiB L3 instance (128 MiB total across 4
-instances, 8 physical cores sharing each). Concurrent jobs thrash L3 and fall back to
-DRAM. Measured: scaling 12 -> 32 workers raised throughput only **1.16x**
-(size-normalised) — per-core efficiency fell 57% — and the *same* locus went from
-1.0s to 5.3s. **16 or fewer cores is the sweet spot**; beyond that you mostly slow
-down your colleagues. RAM is never the constraint (226 GB free; each worker holds one
-alignment and tree).
-
-Because `scf_own` is ~60% of the total work, give it everything first rather than
-splitting evenly; see the recommended schedule in `metrics/README.md`.
+`run_full.sh`, `run_detached.sh`, `run_status.sh` and `finish_run.sh` are the
+workstation-era drivers (`setsid`/`nohup`, a 32-core budget). They are superseded
+by `submit_metrics.sh` and must not be used on the GenomeDK login nodes.
 
 ## Assessing which loci are best
 
@@ -204,15 +215,21 @@ Not tracked, and why:
 
 | Path | Size | How to restore |
 |---|---|---|
-| `data/loci/`, `data/gene_trees/` | 31 GB | extract `singlecopy.tar.gz` |
-| `data/metadata/` | 3.4 MB | ships with the archive |
-| `data/manifest.tsv` | 8.4 MB | `scripts/build_manifest.sh 32` (~16s) |
-| `results/metrics/`, `results/*.tsv` | ~290 MB | `scripts/run_detached.sh 12` then `scripts/make_figures.R` |
-| `results/scf_tables/` | 1.2 GB | cached IQ-TREE runs, 112k files |
+| `data/loci/`, `data/gene_trees/` | 31 GB | `sbatch scripts/restore_data.sh` |
+| `data/metadata/` | 3.4 MB | same archive |
+| `data/manifest.tsv` | 8.4 MB | same archive, or `scripts/build_manifest.sh 32` (~16s) |
+| `results/metrics/`, `results/*.tsv` | ~290 MB | same archive, or `scripts/submit_metrics.sh --all --merge` then `scripts/make_figures.R` |
+| `results/scf_tables/` | 1.2 GB | same archive (cached IQ-TREE 3.1.3 runs, 112k files) |
+| `results/panel_187/` | small | `scripts/submit_metrics.sh --all --loci data/panel_187.tsv` |
+| `.pixi/` | ~1 GB | `sbatch scripts/setup_env.sh` |
 | `logs/` (except `run_full.log`) | — | regenerated per run |
 
 Tracked results: `results/published/` (27 MB), `figures/` as PNG + PDF (1.2 MB), and
 `logs/run_full.log` as the provenance record of the production run.
+
+The archive is `../vgp_phylo_untracked.tar.gz` (7 GB; repo-relative paths). It is
+the only copy of the input data on this cluster and nothing here is backed up —
+keep the off-cluster original.
 
 **The repository is self-contained.** Nothing is read from outside it at run time
 except the IQ-TREE binary. Three helper functions that used to be sourced live from
@@ -224,14 +241,36 @@ improve one there.
 Verified by making `~/scripts` unreadable: all 11 metrics still load and run, and the
 three affected metrics reproduce their pre-vendoring values exactly.
 
+## Reproducibility check after the move
+
+Run on 2026-10-16 after moving to GenomeDK (R 4.4.3 via pixi, IQ-TREE 3.1.3 -> 3.1.4),
+all 11 metrics recomputed on `data/panel_187.tsv` with a fresh IQ-TREE cache, and
+compared with the original full-precision `results/metrics/`
+(`scripts/compare_panel.R`; output in `results/panel_187/comparison.tsv`):
+
+- **10 of 11 metrics are bit-for-bit identical**, including `subst_model` (κ and α
+  re-estimated by IQ-TREE 3.1.4).
+- **`scf_own` is not, and cannot be.** IQ-TREE is called without `-seed`, so
+  `--scfl 100` draws different random quartets every run, and the old cache stores
+  no seed. Two independent 3.1.4 runs differ from *each other* as much as from the
+  3.1.3 original (scf_mean ρ = 0.992 between 3.1.4 replicates vs 0.997 against
+  3.1.3; max |Δ| 0.040 vs 0.015). The difference is sampling noise, not the version.
+  `n_branches` varies too because it counts branches with `sN > 0`.
+
+The published results therefore stand. A per-locus deterministic `-seed` (and the
+seed in the cache key) would make `scf_own` exactly reproducible from here on.
+
 ## Dependencies
 
-- R packages: ape, phangorn, TreeDist, phytools, seqinr, **PhyInformR 1.0**.
-  PhyInformR is archived from CRAN; it was installed from the CRAN archive plus
-  gplots, geiger, gridExtra, hexbin, PBSmodelling.
-- `~/iqtree3` (IQ-TREE 3.1.3) — the only external runtime dependency. Override with
+- R 4.4 with ape, phangorn, TreeDist and **PhyInformR 1.0**, all pinned in
+  `pixi.toml` / `pixi.lock` (conda-forge). PhyInformR is archived from CRAN and its
+  dependency PBSmodelling is not on conda-forge; `scripts/install_cran.R` builds
+  both from source into the environment (PhyInformR checked by md5).
+- IQ-TREE 3.1.4, the project's shared install
+  (`shared_software/iqtree3/`) — the only external runtime dependency. Override with
   `IQTREE=/path/to/iqtree`. Requires `--seqtype DNA`; auto-detection fails on these
-  alignments.
+  alignments. The published results were computed with **3.1.3** on the old
+  workstation; see "Reproducibility check after the move".
 
 ## Status
 

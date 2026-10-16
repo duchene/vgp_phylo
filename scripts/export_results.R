@@ -18,7 +18,8 @@
 ##
 ## Usage: Rscript scripts/export_results.R
 
-root <- Sys.getenv("VGP_PHYLO_ROOT", unset = "/home/davidd/vgp_phylo")
+root <- Sys.getenv("VGP_PHYLO_ROOT", unset = normalizePath(file.path(dirname(sub("^--file=", "",
+  grep("^--file=", commandArgs(FALSE), value = TRUE)[1])), "..")))
 source(file.path(root, "config", "project.R"))
 
 OUT <- file.path(root, "results", "published")
