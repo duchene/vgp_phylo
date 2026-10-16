@@ -257,8 +257,15 @@ compared with the original full-precision `results/metrics/`
   3.1.3; max |Δ| 0.040 vs 0.015). The difference is sampling noise, not the version.
   `n_branches` varies too because it counts branches with `sN > 0`.
 
-The published results therefore stand. A per-locus deterministic `-seed` (and the
-seed in the cache key) would make `scf_own` exactly reproducible from here on.
+The published results therefore stand.
+
+**Seeding, from 2026-10-16 on.** Every IQ-TREE run now gets a deterministic per-locus
+`-seed` (`locus_seed()` in `scripts/lib/iqtree.R`, from the locus_id and the base
+`IQTREE_SEED`, default 1), and the base is part of the cache key
+(`results/scf_tables/own_mHKYG4_q100_s1/`). Two independent seeded panel runs are
+bit-for-bit identical. Set `IQTREE_SEED=""` to reproduce the legacy unseeded
+behaviour and reuse the restored cache (`own_mHKYG4_q100/`), which is what the
+published results came from.
 
 ## Dependencies
 

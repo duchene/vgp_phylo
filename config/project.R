@@ -69,6 +69,21 @@ IQTREE <- Sys.getenv("IQTREE",
 ## The model is part of the IQ-TREE cache key, so changing it invalidates cleanly.
 IQTREE_MODEL <- Sys.getenv("IQTREE_MODEL", unset = "HKY+G4")
 
+## IQ-TREE random seed. --scfl samples quartets at random, so without -seed every
+## run gives different sCF values (two unseeded runs of the 187-locus panel agreed
+## only at rho = 0.992 on scf_mean; see README, "Reproducibility check"). Each locus
+## gets its own seed, derived deterministically from its locus_id and this base
+## (locus_seed() in scripts/lib/iqtree.R), so results do not depend on sharding.
+## The base is part of the IQ-TREE cache key.
+##
+## Set IQTREE_SEED="" for the legacy UNSEEDED behaviour, which is what the
+## published results and the restored cache (results/scf_tables/own_mHKYG4_q100/)
+## were computed with; seeded runs cache under own_mHKYG4_q100_s<base>/ instead.
+IQTREE_SEED <- local({
+  s <- Sys.getenv("IQTREE_SEED", unset = "1")
+  if (!nzchar(s)) NA_integer_ else as.integer(s)
+})
+
 ## Reference species trees, by short name. Metrics that compare a gene tree to a
 ## species tree take one of these keys.
 SPECIES_TREES <- c(

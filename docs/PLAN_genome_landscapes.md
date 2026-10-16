@@ -22,6 +22,72 @@ parameters, and branch lengths where a model requires them, are estimated.
 
 ---
 
+## Status and next steps (updated 2026-10-16) — START HERE when resuming
+
+### Done: Step −1, port to GenomeDK
+
+The repo moved from the old 32-core workstation to
+`/faststorage/project/DeiC-KU-L04/vgp_phylo`, and all of its files stay inside it
+(README, "Location"). Details are in the top-level README; in short:
+
+- [x] Input data and working results restored from `../vgp_phylo_untracked.tar.gz`
+      (`sbatch scripts/restore_data.sh`): 112,199 loci + gene trees, 22 clades.
+- [x] R environment: `pixi.toml` / `pixi.lock`, built by `sbatch scripts/setup_env.sh`
+      (R 4.4.3, PhyInformR 1.0). IQ-TREE 3.1.4 from `shared_software/iqtree3/`.
+- [x] Slurm driver: `scripts/submit_metrics.sh` (one array per metric, checked gather).
+- [x] Pilot panel: `data/panel_187.tsv` (`scripts/make_panel.R`, deterministic:
+      9 loci per clade at tip-count quantiles + the 3 largest loci).
+- [x] Reproducibility: 10 of 11 metrics bit-identical to the original run on the
+      panel; `scf_own` differed only through unseeded `--scfl` quartet sampling.
+- [x] Seeding: every IQ-TREE call now gets a deterministic per-locus `-seed`
+      (`locus_seed()` in `scripts/lib/iqtree.R`, base `IQTREE_SEED` in
+      `config/project.R`, part of the cache key). Verified: two independent
+      seeded panel runs of `scf_own` + `subst_model` are bit-for-bit identical.
+
+### Next: Stage 1 pilot + Stage 0, on the panel
+
+Do these in order; everything runs through Slurm on the panel first.
+
+1. **Check MAST and GHOST syntax in IQ-TREE 3.1.4** on 2–3 panel loci, interactively
+   (`srun --account=DeiC-KU-L04 --cpus-per-task=2 --mem=8G --time=1:00:00 --pty bash`):
+   - `+R k`, `+H k` / `*H k` on the fixed gene tree: which options keep the topology
+     fixed while letting `+H` estimate per-class branch lengths (`-te` without
+     `-blfix`?), and confirm no tree search runs (check the `.log`).
+   - MAST: `-m "GTR+FO+R?+T"` with a multi-tree `-te` file (gene tree, pruned species
+     tree, NNI alternatives). Find the option that writes per-site tree weights
+     (needed by Stage 2) and the parameter block to scrape from `.iqtree`.
+   - Pass `-seed locus_seed(locus_id)` to every fit, as the scf runs now do.
+2. **Write the model-grid runner** as a new metric (`metrics/model_landscape.R`,
+   `register_metric()`), one IQ-TREE run per (locus, family, k), cached like
+   `iqtree_locus()` with model + k + seed in the key. Columns: lnL, df, AIC, BIC,
+   ΔBIC per site vs `+G4`, best k per family, best family, and the parameters.
+   +T candidate-tree construction (Decision 2) goes in `scripts/lib/`.
+3. **Time it on the panel**: `scripts/submit_metrics.sh model_landscape --loci
+   data/panel_187.tsv`. Record seconds per fit by family × k against ntips × nsites
+   (the 3 `largest` loci are the worst case), then extrapolate core-hours for
+   112,199 loci and compare with the remaining billing hours (~138k of 150k at
+   2026-10-16; check `gdk-project-show DeiC-KU-L04`). Decide the shard size and
+   `--time` from this before any full submission.
+4. **Stage 0 in parallel** (no IQ-TREE, cheap): `results/locus_position.tsv` from the
+   locus names and sequence labels (contig, start, end, rank, human chr, linkage
+   group, micro/macro proxy, soft-masked fraction, coding score).
+5. Only then: the parametric-bootstrap calibration subset (~500 loci) and the full run.
+
+### Loose ends from the port (not blocking)
+
+- Old workstation drivers (`run_full.sh`, `run_detached.sh`, `run_status.sh`,
+  `finish_run.sh`) are superseded but still in `scripts/`; delete with `git rm` if wanted.
+- Shared pixi cache (`shared_software/pixi/cache`) has ~800 files of rachelkav's at
+  mode 0600, unreadable to others; `setup_env.sh` falls back to a per-user cache.
+  Ask rachelkav to `chmod -R g+rw` it.
+- Re-running the full production metrics seeded would replace the unseeded
+  published values (~40 core-hours for `scf_own`, new cache directory). Not done:
+  the published results stand, and only `scf_own` is affected.
+- Scratch test outputs `results/panel_187_rep2/`, `results/seedtest_{a,b}/` can be
+  deleted; `results/panel_187/` is the reference panel run (unseeded, matches README).
+
+---
+
 ## Stage 0 — Genomic frame (prerequisite)
 
 Shuffled synteny in living species rules out "position in species X". There are two
@@ -201,8 +267,12 @@ Settled (2026-10-16):
    needed. k = 1–4 draws from this set in that order.
 3. **Scope:** all 112,199 loci for every family, spread across GenomeDK Slurm arrays.
 
+4. **Seeding (2026-10-16):** every IQ-TREE run uses a deterministic per-locus seed
+   from `locus_seed()`, and the seed base is part of every cache key. This covers the
+   Stage 1–3 fits too.
+
 Open:
 
-4. **Dated tree source.** Collaborators are building a dated tree. Stage 4, and the
+5. **Dated tree source.** Collaborators are building a dated tree. Stage 4, and the
    depth-binning in Stage 3, wait for it. Until then, Stage 3 can use substitution-scale
    height on the species tree as an interim depth.

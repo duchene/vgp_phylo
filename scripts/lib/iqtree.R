@@ -36,7 +36,7 @@
 #'   gene trees); FALSE to optimise them (use for the ASTRAL species trees).
 #' @return list(cf = data.frame, tree = phylo or NULL)
 run_iqtree_scf <- function(fasta, tree, blfix, nquartets = 100L, threads = 1L,
-                           model = IQTREE_MODEL, iqtree = IQTREE) {
+                           model = IQTREE_MODEL, iqtree = IQTREE, seed = NA_integer_) {
   stopifnot(file.exists(fasta), is.logical(blfix), length(blfix) == 1L)
   if (!file.exists(iqtree)) stop("IQ-TREE binary not found: ", iqtree)
 
@@ -52,7 +52,8 @@ run_iqtree_scf <- function(fasta, tree, blfix, nquartets = 100L, threads = 1L,
   res <- system2(iqtree,
     c("-s", shQuote(fasta), "-te", shQuote(tpath), "--scfl", nquartets,
       "--seqtype", "DNA", "-m", model, if (blfix) "-blfix",
-      "--prefix", shQuote(prefix), "-T", threads, "-quiet"),
+      "--prefix", shQuote(prefix), "-T", threads, "-quiet",
+      if (!is.na(seed)) c("-seed", seed)),
     stdout = TRUE, stderr = TRUE)
   status <- attr(res, "status")
 
@@ -92,7 +93,18 @@ run_iqtree_scf <- function(fasta, tree, blfix, nquartets = 100L, threads = 1L,
     if (length(gs)) alpha <- suppressWarnings(as.numeric(sub(".*alpha:\\s*", "", gs[1])))
   }
 
-  list(cf = tab, tree = otree, kappa = kappa, alpha = alpha)
+  list(cf = tab, tree = otree, kappa = kappa, alpha = alpha, seed = seed)
+}
+
+#' Deterministic per-locus IQ-TREE seed: a polynomial hash of the locus_id, offset
+#' by the base seed. Depends only on (locus_id, base), never on sharding or order.
+#' NA base -> NA (unseeded).
+locus_seed <- function(locus_id, base = IQTREE_SEED) {
+  if (is.na(base)) return(NA_integer_)
+  m <- 2147483629   # prime < 2^31; h * 31 + code stays exact in a double
+  h <- 0
+  for (k in utf8ToInt(locus_id)) h <- (h * 31 + k) %% m
+  as.integer((h + base) %% m + 1)
 }
 
 #' Cached form of run_iqtree_scf, keyed on (tag, clade, locus_id).
@@ -103,10 +115,12 @@ run_iqtree_scf <- function(fasta, tree, blfix, nquartets = 100L, threads = 1L,
 #' @param tag "own" or "species" -- which reference topology, so the caches for
 #'   the two never collide.
 iqtree_locus <- function(loc, tree, tag, blfix, nquartets = 100L, threads = 1L) {
-  ## The model and quartet count are part of the cache KEY, not just the payload.
-  ## Without this, changing IQTREE_MODEL would silently serve results computed
-  ## under the previous model -- a stale-cache bug that is invisible in the output.
-  key <- sprintf("%s_m%s_q%d", tag, gsub("[^A-Za-z0-9]", "", IQTREE_MODEL), nquartets)
+  ## The model, quartet count and base seed are part of the cache KEY, not just the
+  ## payload. Without this, changing IQTREE_MODEL would silently serve results
+  ## computed under the previous model -- a stale-cache bug that is invisible in
+  ## the output. Unseeded (legacy) runs keep the original key with no _s suffix.
+  key <- sprintf("%s_m%s_q%d%s", tag, gsub("[^A-Za-z0-9]", "", IQTREE_MODEL), nquartets,
+                 if (is.na(IQTREE_SEED)) "" else paste0("_s", IQTREE_SEED))
   f <- file.path(PATHS$scf_cache, key, loc$clade, paste0(loc$locus_id, ".rds"))
   if (file.exists(f)) {
     v <- try(readRDS(f), silent = TRUE)
@@ -115,7 +129,8 @@ iqtree_locus <- function(loc, tree, tag, blfix, nquartets = 100L, threads = 1L) 
     if (!inherits(v, "try-error") && is.list(v) && !is.null(v$cf)) return(v)
   }
   v <- run_iqtree_scf(loc$fasta, tree, blfix = blfix,
-                      nquartets = nquartets, threads = threads)
+                      nquartets = nquartets, threads = threads,
+                      seed = locus_seed(loc$locus_id))
   dir.create(dirname(f), recursive = TRUE, showWarnings = FALSE)
   tmp <- paste0(f, ".tmp", Sys.getpid())
   saveRDS(v, tmp, compress = TRUE)
