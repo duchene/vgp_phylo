@@ -47,11 +47,13 @@ The repo moved from the old 32-core workstation to
 ### Running: Step 0, ModelFinder screen on all loci (launched 2026-10-18)
 
 **Status:** Slurm array 5042081 (200 tasks × 8 cores), resubmitted 2026-10-18 15:02 after
-cancelling 5038386 at ~45% to remove a per-locus directory listing (see commit). About 3 h
-remained at resubmission, with all 200 tasks running. Progress:
-`scripts/modelfinder_status.sh`. When it is done: look for
-`results/modelfinder/*/*.FAILED*` and `exit != 0` rows in `timing/` (resubmitting the
-same command reruns only unfinished loci), then run the parser.
+cancelling 5038386 at ~45% to remove a per-locus directory listing (see commit).
+Progress: `scripts/modelfinder_status.sh`. Finalize job 5046842
+(`scripts/slurm/modelfinder_finalize.sh`, runs after the array) parses the run and packs
+the per-locus files into `archives/<clade>.tar`; it packs nothing if a locus is missing.
+If it stops at the parse, run `scripts/modelfinder_status.sh --full` to count failures
+(their logs are `<clade>/<locus>.FAILED.*`), resubmit the array (finished loci are
+skipped), then resubmit the finalize job.
 
 A first pass over all 112,199 loci that does **model selection only** and keeps the
 best model's parameters. No tree search: the fixed gene tree is passed with `-te`,

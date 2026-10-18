@@ -38,6 +38,7 @@ trap 'rm -rf "$SCRATCH"' EXIT
 
 run_one() {   # locus_id clade ntips_kept nsites fasta treefile seed
   local id="$1" clade="$2" ntips="$3" nsites="$4" fa="$5" tre="$6" seed="$7"
+  [ -n "$id" ] || return 0
   local dest="$OUTDIR/$clade" pre="$SCRATCH/$id"
   [ -s "$dest/$id.iqtree.gz" ] && return 0
   mkdir -p "$dest"
@@ -83,5 +84,5 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 export PATH=/faststorage/project/DeiC-KU-L04/shared_software/pixi/current/bin:$PATH
 eval "$(pixi shell-hook --frozen --manifest-path "$ROOT/pixi.toml")"
 Rscript "$ROOT/scripts/dedup_loci.R" "$JOBS" "$I" "$NSHARDS" "$SCRATCH" "$OUTDIR" |
-  xargs -P "$CORES" -L 1 bash -c 'run_one "$@"' _
+  xargs -r -P "$CORES" -L 1 bash -c 'run_one "$@"' _   # -r: a fully done shard runs nothing
 echo "[$(date -Is)] done"

@@ -96,15 +96,29 @@ one <- function(i) {
   ## Cross-check: the tabulated BIC-best must be the model IQ-TREE reported.
   b$check_best <- identical(a$model[which.min(a$BIC)], b$best_model)
   b$n_models <- nrow(a)
-  list(best = data.frame(locus_id = j$locus_id, clade = j$clade, ntips = j$ntips,
-                         nsites = j$nsites, b, stringsAsFactors = FALSE, check.names = FALSE),
-       all  = data.frame(locus_id = j$locus_id, a, stringsAsFactors = FALSE))
+  list(best = c(list(locus_id = j$locus_id, clade = j$clade, ntips = j$ntips, nsites = j$nsites), b),
+       all  = c(list(locus_id = rep(j$locus_id, nrow(a))), as.list(a)))
 }
 
-res <- parallel::mclapply(seq_len(nrow(jobs)), one, mc.cores = cores)
+## Bind by column, not with do.call(rbind, <112k data frames>), which takes hours.
+bind_cols <- function(rows) {
+  nm <- names(rows[[1]])
+  as.data.frame(setNames(lapply(nm, function(n) unlist(lapply(rows, `[[`, n), use.names = FALSE)), nm),
+                stringsAsFactors = FALSE, check.names = FALSE)
+}
+
+res <- parallel::mclapply(seq_len(nrow(jobs)), function(i)
+  tryCatch(one(i), error = function(e) structure(conditionMessage(e), class = "parse_error")),
+  mc.cores = cores)
+bad <- vapply(res, inherits, logical(1), "parse_error")
+if (any(bad)) {
+  cat(sum(bad), "loci could not be parsed, e.g.", jobs$locus_id[which(bad)[1]], ":",
+      unclass(res[[which(bad)[1]]]), "\n")
+  res <- res[!bad]
+}
 res <- res[!vapply(res, is.null, logical(1))]
-best <- do.call(rbind, lapply(res, `[[`, "best"))
-all  <- do.call(rbind, lapply(res, `[[`, "all"))
+best <- bind_cols(lapply(res, `[[`, "best"))
+all  <- bind_cols(lapply(res, `[[`, "all"))
 
 ## Sequences collapsed before fitting (dedup_loci.R); the last row wins if a locus
 ## was prepared more than once (resubmitted task).
@@ -123,3 +137,5 @@ gz <- gzfile(file.path(outdir, "all_models.tsv.gz"), "w")
 utils::write.table(all, gz, sep = "\t", quote = FALSE, row.names = FALSE); close(gz)
 cat(nrow(best), "of", nrow(jobs), "loci parsed;", sum(!best$check_best),
     "where the recomputed BIC-best differs from IQ-TREE's\n")
+## Non-zero exit if anything is missing, so a dependent step (archiving) stops.
+if (nrow(best) < nrow(jobs) || any(bad)) quit(status = 1)

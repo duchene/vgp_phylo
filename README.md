@@ -148,6 +148,17 @@ scripts/submit_modelfinder.sh --loci data/panel_187.tsv --shards 12   # -> resul
 scripts/submit_modelfinder.sh --shards 200 --cores 8 --mem 8G --time 06:00:00   # all loci -> results/modelfinder/
 pixi run Rscript scripts/parse_modelfinder.R results/modelfinder 8    # best_model.tsv, all_models.tsv.gz
 scripts/modelfinder_status.sh [--full] [results/modelfinder]          # progress, failures, CPU-hours, ETA
+sbatch --account=DeiC-KU-L04 --dependency=afterany:<array> --cpus-per-task=8 --mem=16G --time=06:00:00 \
+  --output=logs/mf_finalize_%j.out scripts/slurm/modelfinder_finalize.sh results/modelfinder   # parse + pack
+```
+
+`modelfinder_finalize.sh` parses the run, then packs each clade's per-locus files into
+`results/modelfinder/archives/<clade>.tar` (~450k files -> 22), deleting a clade directory
+only after its tar holds all 4 files per locus. It packs nothing if any locus is missing.
+Read one locus without unpacking:
+
+```bash
+tar -xOf results/modelfinder/archives/BirdsAnc0.tar BirdsAnc0/<locus>.treefile.gz | zcat
 ```
 
 ## Assessing which loci are best
@@ -236,7 +247,7 @@ Not tracked, and why:
 | `results/metrics/`, `results/*.tsv` | ~290 MB | same archive, or `scripts/submit_metrics.sh --all --merge` then `scripts/make_figures.R` |
 | `results/scf_tables/` | 1.2 GB | same archive (cached IQ-TREE 3.1.3 runs, 112k files) |
 | `results/panel_187/` | small | `scripts/submit_metrics.sh --all --loci data/panel_187.tsv` |
-| `results/modelfinder/` | ~7 GB | `scripts/submit_modelfinder.sh --shards 200 --cores 8 --mem 8G --time 06:00:00` (~1,800 core-hours) |
+| `results/modelfinder/` (tables + `archives/`) | ~7 GB | `scripts/submit_modelfinder.sh --shards 200 --cores 8 --mem 8G --time 06:00:00` (~1,800 core-hours) |
 | `results/modelfinder_panel_187{,_cmax5}/` | 12 MB | pilots: `scripts/submit_modelfinder.sh --loci data/panel_187.tsv --shards 12` |
 | `.pixi/` | ~1 GB | `sbatch scripts/setup_env.sh` |
 | `logs/` (except `run_full.log`) | — | regenerated per run |

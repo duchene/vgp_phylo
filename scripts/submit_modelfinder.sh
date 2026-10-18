@@ -38,6 +38,11 @@ cd "$ROOT"
 if [ -n "$LOCI" ]; then OUTDIR="${OUTDIR:-results/modelfinder_$(basename "$LOCI" .tsv)}"
 else OUTDIR="${OUTDIR:-results/modelfinder}"; fi
 OUTDIR="$(realpath -m "$OUTDIR")"
+# After modelfinder_finalize.sh the per-locus files live in archives/, so the
+# "done" markers are gone and a resubmission would recompute every locus.
+if [ -d "$OUTDIR/archives" ]; then
+  echo "$OUTDIR is already finalized (archives/); unpack it or use another --outdir" >&2; exit 1
+fi
 mkdir -p logs "$OUTDIR"
 
 JOBS="$OUTDIR/jobs.tsv"
