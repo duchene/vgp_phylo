@@ -135,6 +135,18 @@ IQ-TREE runs instead of replaying the production cache.
 workstation-era drivers (`setsid`/`nohup`, a 32-core budget). They are superseded
 by `submit_metrics.sh` and must not be used on the GenomeDK login nodes.
 
+## ModelFinder screen (model selection only)
+
+Per-locus BIC model selection on the fixed gene tree: JC/F81/K2P/HKY/TN/GTR ×
+{E, +R2..15, +H2..15}, after collapsing near-identical sequences. Design, pilot and
+cost are in `docs/PLAN_genome_landscapes.md` (Step 0).
+
+```bash
+scripts/submit_modelfinder.sh --loci data/panel_187.tsv --shards 12   # -> results/modelfinder_panel_187/
+scripts/submit_modelfinder.sh --shards 200 --cores 8 --mem 8G --time 06:00:00   # all loci -> results/modelfinder/
+pixi run Rscript scripts/parse_modelfinder.R results/modelfinder 8    # best_model.tsv, all_models.tsv.gz
+```
+
 ## Assessing which loci are best
 
 ```bash

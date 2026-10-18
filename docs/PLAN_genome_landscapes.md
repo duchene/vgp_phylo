@@ -22,7 +22,7 @@ parameters, and branch lengths where a model requires them, are estimated.
 
 ---
 
-## Status and next steps (updated 2026-10-16) — START HERE when resuming
+## Status and next steps (updated 2026-10-18) — START HERE when resuming
 
 ### Done: Step −1, port to GenomeDK
 
@@ -43,6 +43,46 @@ The repo moved from the old 32-core workstation to
       (`locus_seed()` in `scripts/lib/iqtree.R`, base `IQTREE_SEED` in
       `config/project.R`, part of the cache key). Verified: two independent
       seeded panel runs of `scf_own` + `subst_model` are bit-for-bit identical.
+
+### Running: Step 0, ModelFinder screen on all loci (launched 2026-10-18)
+
+A first pass over all 112,199 loci that does **model selection only** and keeps the
+best model's parameters. No tree search: the fixed gene tree is passed with `-te`,
+and each candidate model re-optimises branch lengths on that topology.
+
+- **Candidates:** JC, F81, K2P, HKY, TN, GTR (`-mfreq F`, so F81/HKY/TN/GTR get +F
+  and there are no SYM/TNe twins) × {E (one class), +R2..R15, +H2..H15 (GHOST, linked)},
+  up to 174 models; BIC picks the best. No +G, +I or +T. ModelFinder stops raising k
+  within a family once BIC gets worse. That is intended (we don't want to fit models
+  that are already worse), and it means high k is only fitted where it pays.
+- **Near-identical sequences are collapsed first** (`scripts/dedup_loci.R`). Visiting
+  sequences from most to fewest unambiguous bases, a sequence is dropped if its
+  p-distance to one already kept is ≤ 0.001 (`MF_NEARIDENT`), and the gene tree is
+  pruned to match. The panel loses 1,108 of 35,494 tips (3.1%; 789 of them exact
+  duplicates); `best_model.tsv` records every dropped tip and its representative.
+- **Code:** `scripts/submit_modelfinder.sh` → `scripts/slurm/modelfinder_shard.sh`
+  (round-robin shards, dedup streamed into N single-threaded IQ-TREE runs per task,
+  resumable, per-locus `locus_seed()`, `-keep-ident`, automatic `-safe` retry on
+  numerical underflow) → `scripts/parse_modelfinder.R`. The parser writes
+  `best_model.tsv` (fit statistics, the six rates, frequencies, R1..R15 rate/weight,
+  H1..H15 weight/tree length, the dedup record) and `all_models.tsv.gz` (lnL, df,
+  tree length, BIC and dBIC of every model tested). Per-branch lengths (per class for
+  +H) stay in `<clade>/<locus>.treefile.gz`.
+- **Pilot** (`results/modelfinder_panel_187/`; the earlier k ≤ 5, no-dedup run is in
+  `_cmax5/`): 187/187 loci ran, with no failures and no `-safe` retries, and the parser
+  agrees with IQ-TREE's BIC-best on all of them.
+  - Run time and memory: median 42 s per locus, maximum 20 min (557 tips);
+    peak RSS 428 MB per IQ-TREE run.
+  - Selected models: best k ranges from 1 to 7, the highest k tried was R8, and the
+    cap of 15 was never reached. +H was never chosen (ΔBIC to the best is 72 to 8,800).
+  - Stability: 177/187 loci pick the same model as in the k ≤ 5 run.
+- **Estimate for all loci:** about 1,700–1,900 core-hours (per-tip-bin and regression
+  extrapolation; log(wall) ~ log(ntips) + log(nsites), R² = 0.91). About 80% of it is
+  in the loci with 150–200 and 300–400 tips. Budget about 2,300 billing hours with
+  end-of-task idle cores, roughly 2% of the ~128.5k remaining. Output is about 7 GB.
+- **Launch:** `scripts/submit_modelfinder.sh --shards 200 --cores 8 --mem 8G --time 06:00:00`
+  (about 9.5 core-hours, or 1.2 h of wall time, per task). Afterwards, run
+  `pixi run Rscript scripts/parse_modelfinder.R results/modelfinder 8` on a compute node.
 
 ### Next: Stage 1 pilot + Stage 0, on the panel
 
