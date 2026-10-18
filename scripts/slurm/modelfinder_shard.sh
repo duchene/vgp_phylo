@@ -63,7 +63,9 @@ run_one() {   # locus_id clade ntips_kept nsites fasta treefile seed
     gzip -f "$pre.iqtree" "$pre.treefile"
     mv "$pre.model.gz" "$pre.ckp.gz" "$pre.treefile.gz" "$dest/"
     mv "$pre.iqtree.gz" "$dest/"   # last: its presence marks the locus done
-    rm -f "$dest/$id".FAILED.*
+    # Explicit names, never a glob: a glob makes bash read the whole clade directory
+    # (BirdsAnc0 holds ~190k files; one listing takes ~5 s and loads the metadata server).
+    rm -f "$dest/$id.FAILED.log.gz" "$dest/$id.FAILED.out"
   else
     gzip -c "$pre.log" > "$dest/$id.FAILED.log.gz" 2>/dev/null || cp "$pre.out" "$dest/$id.FAILED.out"
   fi

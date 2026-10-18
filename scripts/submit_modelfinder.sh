@@ -41,7 +41,13 @@ OUTDIR="$(realpath -m "$OUTDIR")"
 mkdir -p logs "$OUTDIR"
 
 JOBS="$OUTDIR/jobs.tsv"
-pixi run --frozen Rscript scripts/modelfinder_jobs.R "$JOBS" ${LOCI:+"$LOCI"}
+# Building the table checks ~224k input files exist: a metadata burst we don't repeat
+# on the login node when resubmitting. Rebuilt only if missing or older than its inputs.
+if [ ! -s "$JOBS" ] || [ data/manifest.tsv -nt "$JOBS" ] || { [ -n "$LOCI" ] && [ "$LOCI" -nt "$JOBS" ]; }; then
+  pixi run --frozen Rscript scripts/modelfinder_jobs.R "$JOBS" ${LOCI:+"$LOCI"}
+else
+  echo "reusing $JOBS"
+fi
 NJOBS=$(( $(wc -l < "$JOBS") - 1 ))
 [ "$SHARDS" -le "$NJOBS" ] || SHARDS="$NJOBS"
 
