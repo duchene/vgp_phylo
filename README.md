@@ -147,6 +147,7 @@ cost are in `docs/PLAN_genome_landscapes.md` (Step 0).
 scripts/submit_modelfinder.sh --loci data/panel_187.tsv --shards 12   # -> results/modelfinder_panel_187/
 scripts/submit_modelfinder.sh --shards 200 --cores 8 --mem 8G --time 06:00:00   # all loci -> results/modelfinder/
 pixi run Rscript scripts/parse_modelfinder.R results/modelfinder 8    # best_model.tsv, all_models.tsv.gz
+scripts/modelfinder_status.sh [--full] [results/modelfinder]          # progress, failures, CPU-hours, ETA
 ```
 
 ## Assessing which loci are best

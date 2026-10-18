@@ -50,4 +50,7 @@ CMD=(sbatch --parsable --account=DeiC-KU-L04 --job-name=modelfinder
      --output="logs/mf_%A_%a.out"
      scripts/slurm/modelfinder_shard.sh "$JOBS" "$SHARDS" "$CORES" "$OUTDIR")
 echo "$NJOBS loci, $SHARDS task(s) x $CORES cores, -> $OUTDIR"
-if [ "$DRY" -eq 1 ]; then echo "${CMD[*]}"; else echo "array job $("${CMD[@]}")"; fi
+if [ "$DRY" -eq 1 ]; then echo "${CMD[*]}"; exit 0; fi
+JOBID=$("${CMD[@]}")
+echo "$JOBID" >> "$OUTDIR/slurm_jobs"   # read by scripts/modelfinder_status.sh
+echo "array job $JOBID"
