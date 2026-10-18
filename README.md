@@ -40,8 +40,10 @@ metrics/                               one file per metric  -- see metrics/READM
 scripts/                               drivers; scripts/lib/ holds shared helpers
 scripts/submit_metrics.sh              Slurm submission: one job array per metric + gather
 scripts/slurm/                         array task and gather bodies
+scripts/submit_modelfinder.sh          ModelFinder screen (Slurm array); dedup_loci.R, parse_modelfinder.R
 results/metrics/<metric>.tsv           one output file per metric
 results/scf_tables/<tag>_m<model>_q<n>/  cached IQ-TREE runs (the dominant cost)
+results/modelfinder/                   per-locus ModelFinder outputs + best_model.tsv, all_models.tsv.gz
 results/locus_metrics.tsv              merged wide table (112,199 x 64), full precision, LOCAL
 results/locus_quality.tsv              per-locus composite quality + ranks, LOCAL
 results/published/                     the committed result set -- see below
@@ -233,6 +235,8 @@ Not tracked, and why:
 | `results/metrics/`, `results/*.tsv` | ~290 MB | same archive, or `scripts/submit_metrics.sh --all --merge` then `scripts/make_figures.R` |
 | `results/scf_tables/` | 1.2 GB | same archive (cached IQ-TREE 3.1.3 runs, 112k files) |
 | `results/panel_187/` | small | `scripts/submit_metrics.sh --all --loci data/panel_187.tsv` |
+| `results/modelfinder/` | ~7 GB | `scripts/submit_modelfinder.sh --shards 200 --cores 8 --mem 8G --time 06:00:00` (~1,800 core-hours) |
+| `results/modelfinder_panel_187{,_cmax5}/` | 12 MB | pilots: `scripts/submit_modelfinder.sh --loci data/panel_187.tsv --shards 12` |
 | `.pixi/` | ~1 GB | `sbatch scripts/setup_env.sh` |
 | `logs/` (except `run_full.log`) | — | regenerated per run |
 

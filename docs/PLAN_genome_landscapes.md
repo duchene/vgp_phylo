@@ -46,6 +46,11 @@ The repo moved from the old 32-core workstation to
 
 ### Running: Step 0, ModelFinder screen on all loci (launched 2026-10-18)
 
+**Status:** Slurm array 5038386 (200 tasks × 8 cores), submitted 2026-10-18. Expected to
+take ~6 h at the queue's initial 42 concurrent tasks. When it is done: look for
+`results/modelfinder/*/*.FAILED*` and `exit != 0` rows in `timing/` (resubmitting the
+same command reruns only unfinished loci), then run the parser.
+
 A first pass over all 112,199 loci that does **model selection only** and keeps the
 best model's parameters. No tree search: the fixed gene tree is passed with `-te`,
 and each candidate model re-optimises branch lengths on that topology.
