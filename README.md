@@ -161,6 +161,17 @@ Read one locus without unpacking:
 tar -xOf results/modelfinder/archives/BirdsAnc0.tar BirdsAnc0/<locus>.treefile.gz | zcat
 ```
 
+## Best-model landscape figures
+
+```bash
+pixi run Rscript scripts/model_summary.R results/modelfinder/best_model.tsv results/modelfinder/model_params.tsv
+pixi run Rscript scripts/stage0_positions.R          # results/stage0/locus_position.tsv (ancestral coordinates)
+pixi run Rscript scripts/make_model_figures.R        # figures/model/A1-A3
+pixi run Rscript scripts/make_landscape_figures.R    # figures/model/B1-B3, D1 (run on a compute node, ~16 GB)
+```
+
+What each figure shows, and the first observations, are in `docs/PLAN_genome_landscapes.md` (Step 1).
+
 ## Assessing which loci are best
 
 ```bash

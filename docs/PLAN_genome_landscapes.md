@@ -93,64 +93,98 @@ and each candidate model re-optimises branch lengths on that topology.
   (about 9.5 core-hours, or 1.2 h of wall time, per task). Afterwards, run
   `pixi run Rscript scripts/parse_modelfinder.R results/modelfinder 8` on a compute node.
 
-### Next: Step 1, the best-model landscape along the genome (planned 2026-10-18)
+### Step 1, the best-model landscape along the ancestral genome (first figures 2026-10-18)
 
-Summarise Step 0 along the ancestral genome and the chromosomes of reference species,
-and show how the model parameters relate to one another.
+Summarise Step 0 along the ANCESTRAL genome (the coordinates in the locus names), and
+show how the model parameters relate to one another and differ among clades.
 
 **Decisions (2026-10-18):**
 1. **Transparent, not comparable.** Every value comes from the locus's OWN best model,
-   and model selection is part of what the figures show: a JC locus has ti/tv = 1 and
-   equal base frequencies because JC was selected. The best model, its family and its k
-   are shown beside every parameter. Nothing is refitted under a common model.
+   and model selection is part of what the figures show: a K2P locus has GC = 0.50
+   because K2P was selected, and a single-class locus has FreeRate CV = 0. The best
+   model, its family and its k are shown beside every parameter. Nothing is refitted
+   under a common model.
 2. **Parameters:** the substitution rates and base frequencies, the +R rates and weights,
    and tree length. Tree length is the total branch length of the best model,
    re-estimated on the fixed gene tree during model selection. It is in `best_model.tsv`,
-   and the per-branch lengths are in each locus's `.treefile.gz`. No `--blscale` run.
-3. **Chromosome references** are picked automatically per clade (below), with chicken
-   (GCF_016700215.2) and human (GRCh38, GCA_000001405.15) added wherever they occur.
+   and the per-branch lengths are in each locus's `.treefile.gz` (`archives/`). No
+   `--blscale` run.
+3. **Keep the frame simple.** Positions come only from the ancestral-genome
+   coordinates in the locus names. The ancestral reconstructions may change
+   substantially, so nothing more elaborate is built on them yet; other frames are
+   documented below.
 
-**Derived table:** `scripts/model_summary.R` reads `best_model.tsv` and writes
-`model_params.tsv` with these columns:
-- the model: subst (JC..GTR), freq (equal/F), rate_family (E/R/H) and k;
-- `titv`: the rate ratio mean(A-G, C-T) / mean(transversions), so JC/F81 = 1 and
-  K2P/HKY = κ;
-- composition: GC, AT skew and GC skew, from the model's frequencies;
-- FreeRate: `rate_cv`, the coefficient of variation of the site-rate distribution
-  (0 with one class), and the slowest and fastest class's rate and weight;
-- tree length, internal length and mean branch length.
+**Tables:**
+- `scripts/model_summary.R` reads `best_model.tsv` and writes
+  `results/modelfinder/model_params.tsv` with these columns:
+  - the model: subst, freq (equal/F), rate_family (E/R/H) and k;
+  - `titv`: the rate ratio mean(A-G, C-T) / mean(transversions), so JC/F81 = 1 and
+    K2P/HKY = κ;
+  - composition: GC, AT skew and GC skew, from the model's frequencies;
+  - FreeRate: `rate_cv`, the coefficient of variation of the site-rate distribution
+    (0 with one class), and the slowest and fastest class's rate and weight;
+  - tree length, internal length and mean branch length.
+- `scripts/stage0_positions.R` writes `results/stage0/locus_position.tsv`: contig,
+  start, end, mid, rank, loci on the contig, the span covered by loci, and distance to
+  the outermost locus. Contig lengths are unknown, so "end" means the outermost locus.
+  Along-contig analysis is informative only where contigs hold many loci:
 
-**Genomic frame (minimal Stage 0):**
-- `scripts/slurm/stage0_labels.sh`
-  → `results/stage0/locus_labels.tsv.gz`, with one row per (locus, sequence): the
-  assembly and the chromosome/scaffold accession.
-- Positions along ancestral contigs come from the locus names. They are informative only
-  where contigs hold many loci: Birds (43.9k of 47.1k loci on contigs with ≥10 loci),
-  Squamates (24.6k of 28.9k) and Cartilaginous fishes (12.2k of 14.9k). Anura and
-  VertebratesAnc5 are marginal and the rest have almost none. Contig lengths are not
-  known, only the span covered by loci, so "distance to contig end" is distance to the
-  outermost locus.
-- Reference chromosomes: for each clade, the assembly present in the most loci whose
-  sequences sit on assembled chromosomes (NCBI sequence reports: chromosome name and
-  length). The labels give the chromosome, not the position on it, so chromosome
-  figures show membership, not a karyotype layout at real coordinates.
+  | Clade | Loci on contigs with ≥10 loci | Of total |
+  |---|---|---|
+  | Birds | 43.9k | 47.1k |
+  | Squamates | 24.6k | 28.9k |
+  | Cartilaginous fishes | 12.2k | 14.9k |
+  | VertebratesAnc5 | 1.3k | 4.7k |
 
-**Figures:**
-- A. No positions needed:
-  1. best-model composition by clade, and best k against ntips × nsites;
-  2. a clustered correlation matrix of the parameters together with the existing
-     metrics (sCF, δ, entropy, rate_var);
-  3. pairwise panels: GC vs ti/tv; rate_cv vs tree length; GC vs tree length; base
-     frequency skews.
-- B. Along ancestral contigs (Birds, Squamates, Cartilaginous fishes):
-  4. genome tracks of GC, ti/tv, rate_cv, tree length and best model, in contig order;
-  5. autocorrelation of each parameter against distance along the contig, with a
-     within-contig permutation null;
-  6. each parameter against distance to the outermost locus.
-- C. Chromosomes:
-  7. Birds by chicken chromosome ordered by size (micro vs macro);
-  8. the deep clades by human chromosome;
-  9. the other clades by their reference species.
+  Anura is marginal. VertebratesAnc1–4, and every other clade, have essentially no
+  multi-locus contigs.
+
+**Figures (`figures/model/`):**
+- `scripts/make_model_figures.R` (no positions needed):
+  - A1: best model by clade, and k by data size;
+  - A2: parameter correlations, raw and partial (log tips, log sites, clade);
+  - A3: pairwise densities.
+- `scripts/make_landscape_figures.R`:
+  - B1: correlogram along contigs against a within-contig permutation null;
+  - B2: tracks along the most locus-dense contigs;
+  - B3: parameters against distance to the outermost locus;
+  - D1: the deep vertebrate clades, VertebratesAnc1–5 (Anc0 has 2 loci).
+
+**First observations (to be checked, not conclusions):**
+- **Best models:** GTR is best for most loci (about 78%). No locus picks JC or F81, and
+  +H is best for only 6. The best k is 1–7, and it rises with tips and sites (A1c), so
+  k is partly a measure of data size.
+- **Rate per branch is clade-structured.** About 0.025 subs/site in Birds and the
+  deep Vertebrates clades, against 0.06–0.09 in fishes and Anura. Pooled plots mix the
+  two groups, so pairwise relationships are best read within a clade or partialled (A2b).
+- **Local similarity along ancestral contigs (B1).** In Birds every parameter is
+  far more similar between neighbouring loci than the within-contig permutation
+  allows. The excess decays over about 0.25–0.5 Mb. Squamates and Cartilaginous
+  fishes show the same pattern more weakly.
+- **Towards the outermost loci (B3),** Squamate GC and rate rise. Birds change little.
+- **Deep clades (D1):** from Anc1 to Anc5, FreeRate CV falls and the rate per branch
+  rises gradually, while composition stays similar. Mean tips also differ (about
+  280–410), so the trend in CV needs checking against tips.
+
+**Other frames, documented for later (not built):**
+- **Reference-species chromosomes.** Every sequence label carries that species'
+  chromosome accession. `scripts/slurm/stage0_labels.sh` has already extracted them to
+  `results/stage0/locus_labels.tsv.gz` (14.2M rows). `scripts/fetch_sequence_reports.py`
+  has fetched NCBI chromosome names and lengths for 74 candidate references (5 per
+  clade by coverage, plus chicken GCF_016700215.2 and human GCA_000001405.15) into
+  `results/stage0/assembly_reports/`. That is enough for:
+  - loci by chicken chromosome, with micro vs macro (chicken 1–5, Z, W = macro; 6–10
+    intermediate);
+  - loci by human chromosome for the deep clades;
+  - loci by the chromosomes of a per-clade reference.
+
+  The labels give the chromosome, not the position on it, so this shows membership
+  only. A karyotype layout at real coordinates would need mapping the loci.
+- **Conserved linkage groups.** These come from clustering ancestral contigs by how
+  often they land on the same chromosome across species. The same label table is
+  the input.
+- **Coding score and soft-masked fraction** per locus, as covariates (Stage 0 as
+  originally planned).
 
 ### Later: Stage 1 pilot + Stage 0, on the panel
 
