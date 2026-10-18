@@ -93,7 +93,66 @@ and each candidate model re-optimises branch lengths on that topology.
   (about 9.5 core-hours, or 1.2 h of wall time, per task). Afterwards, run
   `pixi run Rscript scripts/parse_modelfinder.R results/modelfinder 8` on a compute node.
 
-### Next: Stage 1 pilot + Stage 0, on the panel
+### Next: Step 1, the best-model landscape along the genome (planned 2026-10-18)
+
+Summarise Step 0 along the ancestral genome and the chromosomes of reference species,
+and show how the model parameters relate to one another.
+
+**Decisions (2026-10-18):**
+1. **Transparent, not comparable.** Every value comes from the locus's OWN best model,
+   and model selection is part of what the figures show: a JC locus has ti/tv = 1 and
+   equal base frequencies because JC was selected. The best model, its family and its k
+   are shown beside every parameter. Nothing is refitted under a common model.
+2. **Parameters:** the substitution rates and base frequencies, the +R rates and weights,
+   and tree length. Tree length is the total branch length of the best model,
+   re-estimated on the fixed gene tree during model selection. It is in `best_model.tsv`,
+   and the per-branch lengths are in each locus's `.treefile.gz`. No `--blscale` run.
+3. **Chromosome references** are picked automatically per clade (below), with chicken
+   (GCF_016700215.2) and human (GRCh38, GCA_000001405.15) added wherever they occur.
+
+**Derived table:** `scripts/model_summary.R` reads `best_model.tsv` and writes
+`model_params.tsv` with these columns:
+- the model: subst (JC..GTR), freq (equal/F), rate_family (E/R/H) and k;
+- `titv`: the rate ratio mean(A-G, C-T) / mean(transversions), so JC/F81 = 1 and
+  K2P/HKY = κ;
+- composition: GC, AT skew and GC skew, from the model's frequencies;
+- FreeRate: `rate_cv`, the coefficient of variation of the site-rate distribution
+  (0 with one class), and the slowest and fastest class's rate and weight;
+- tree length, internal length and mean branch length.
+
+**Genomic frame (minimal Stage 0):**
+- `scripts/slurm/stage0_labels.sh`
+  → `results/stage0/locus_labels.tsv.gz`, with one row per (locus, sequence): the
+  assembly and the chromosome/scaffold accession.
+- Positions along ancestral contigs come from the locus names. They are informative only
+  where contigs hold many loci: Birds (43.9k of 47.1k loci on contigs with ≥10 loci),
+  Squamates (24.6k of 28.9k) and Cartilaginous fishes (12.2k of 14.9k). Anura and
+  VertebratesAnc5 are marginal and the rest have almost none. Contig lengths are not
+  known, only the span covered by loci, so "distance to contig end" is distance to the
+  outermost locus.
+- Reference chromosomes: for each clade, the assembly present in the most loci whose
+  sequences sit on assembled chromosomes (NCBI sequence reports: chromosome name and
+  length). The labels give the chromosome, not the position on it, so chromosome
+  figures show membership, not a karyotype layout at real coordinates.
+
+**Figures:**
+- A. No positions needed:
+  1. best-model composition by clade, and best k against ntips × nsites;
+  2. a clustered correlation matrix of the parameters together with the existing
+     metrics (sCF, δ, entropy, rate_var);
+  3. pairwise panels: GC vs ti/tv; rate_cv vs tree length; GC vs tree length; base
+     frequency skews.
+- B. Along ancestral contigs (Birds, Squamates, Cartilaginous fishes):
+  4. genome tracks of GC, ti/tv, rate_cv, tree length and best model, in contig order;
+  5. autocorrelation of each parameter against distance along the contig, with a
+     within-contig permutation null;
+  6. each parameter against distance to the outermost locus.
+- C. Chromosomes:
+  7. Birds by chicken chromosome ordered by size (micro vs macro);
+  8. the deep clades by human chromosome;
+  9. the other clades by their reference species.
+
+### Later: Stage 1 pilot + Stage 0, on the panel
 
 Do these in order; everything runs through Slurm on the panel first.
 

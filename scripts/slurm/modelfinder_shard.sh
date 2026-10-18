@@ -62,8 +62,14 @@ run_one() {   # locus_id clade ntips_kept nsites fasta treefile seed
   read -r usr sys rss < <(tail -n 1 "$pre.rus") || true
   if [ "$st" -eq 0 ] && [ -s "$pre.iqtree" ]; then
     gzip -f "$pre.iqtree" "$pre.treefile"
-    mv "$pre.model.gz" "$pre.ckp.gz" "$pre.treefile.gz" "$dest/"
-    mv "$pre.iqtree.gz" "$dest/"   # last: its presence marks the locus done
+    # Scratch is node-local, so a plain mv is a copy that a killed job can leave
+    # half-written -- and a truncated .iqtree.gz would then count as done (it did:
+    # 3 loci when array 5038386 was cancelled). Copy to .part, then rename on the
+    # same filesystem, which is atomic.
+    local f
+    for f in model.gz ckp.gz treefile.gz iqtree.gz; do   # iqtree.gz last: marks done
+      cp "$pre.$f" "$dest/$id.$f.part" && mv -f "$dest/$id.$f.part" "$dest/$id.$f"
+    done
     # Explicit names, never a glob: a glob makes bash read the whole clade directory
     # (BirdsAnc0 holds ~190k files; one listing takes ~5 s and loads the metadata server).
     rm -f "$dest/$id.FAILED.log.gz" "$dest/$id.FAILED.out"
