@@ -47,8 +47,8 @@ The repo moved from the old 32-core workstation to
 ### Running: Step 0, ModelFinder screen on all loci (launched 2026-10-18)
 
 **Status:** Slurm array 5042081 (200 tasks × 8 cores), resubmitted 2026-10-18 15:02 after
-cancelling 5038386 at ~45% to remove a per-locus directory listing (see commit). Expected to
-take ~6 h at the queue's initial 42 concurrent tasks. Progress:
+cancelling 5038386 at ~45% to remove a per-locus directory listing (see commit). About 3 h
+remained at resubmission, with all 200 tasks running. Progress:
 `scripts/modelfinder_status.sh`. When it is done: look for
 `results/modelfinder/*/*.FAILED*` and `exit != 0` rows in `timing/` (resubmitting the
 same command reruns only unfinished loci), then run the parser.
