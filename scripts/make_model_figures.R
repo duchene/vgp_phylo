@@ -146,40 +146,66 @@ render("A2_parameter_correlations", 13, 6.6, function() {
 })
 
 # ---------------------------------------------- A3: pairwise relationships ----
-## 2-D histograms (log counts): 112k points would overplot. One blue sequential ramp.
-dens <- function(x, y, xlab, ylab, main, logx = FALSE, logy = FALSE, nb = 70, note = NULL) {
-  ok <- is.finite(x) & is.finite(y) & (!logx | x > 0) & (!logy | y > 0)
-  x <- x[ok]; y <- y[ok]; tx <- if (logx) log10(x) else x; ty <- if (logy) log10(y) else y
-  qx <- quantile(tx, c(0.002, 0.998)); qy <- quantile(ty, c(0.002, 0.998))
-  bx <- seq(qx[1], qx[2], length.out = nb + 1); by <- seq(qy[1], qy[2], length.out = nb + 1)
-  h <- table(cut(tx, bx, include.lowest = TRUE), cut(ty, by, include.lowest = TRUE))
-  z <- log10(unclass(h)); z[!is.finite(z)] <- NA
-  base_par(mar = c(3.6, 3.8, 2.6, 1))
-  image(head(bx, -1) + diff(bx) / 2, head(by, -1) + diff(by) / 2, z, col = seq_ramp(40)[6:40],
-        xlab = "", ylab = "", axes = FALSE)
-  lab_axis <- function(side, lg, rng) {
-    if (lg) { at <- pretty(rng); axis(side, at = at, labels = signif(10^at, 2), col = AXIS) }
-    else axis(side, col = AXIS)
-  }
-  lab_axis(1, logx, qx); lab_axis(2, logy, qy)
-  title(xlab = xlab, line = 2.3); title(ylab = ylab, line = 2.6)
-  title(main = main, adj = 0, line = 0.8)
-  r <- cor(x, y, method = "spearman")
-  mtext(sprintf("Spearman %.2f   n = %s%s", r, format(length(x), big.mark = ","),
-                if (is.null(note)) "" else paste0("   ", note)),
-        side = 3, line = -1.1, adj = 0.02, cex = 0.58, col = INK2)
+## One row per clade (clades with >= 1,000 loci), one column per pair, axes SHARED
+## down each column so clades compare directly. Rate per branch is strongly clade-
+## structured (~0.025 subs/site in Birds and deep Vertebrates vs 0.06-0.09 in fishes
+## and Anura), so pooled panels would mix groups. 2-D histograms of log counts,
+## scaled within each panel; bins coarser for smaller clades.
+PAIRS <- list(
+  list(x = "gc", y = "titv", xl = "GC (model base frequencies)", yl = "ti/tv rate ratio",
+       main = "GC vs ti/tv"),
+  list(x = "mean_branch_length", y = "rate_cv", xl = "tree length / branches", yl = "FreeRate CV",
+       main = "Rate vs rate heterogeneity", logx = TRUE),
+  list(x = "gc", y = "mean_branch_length", xl = "GC (model base frequencies)", yl = "tree length / branches",
+       main = "GC vs rate", logy = TRUE),
+  list(x = "at_skew", y = "gc_skew", xl = "AT skew (A-T)/(A+T)", yl = "GC skew (G-C)/(G+C)",
+       main = "Strand composition skews"))
+tr <- function(v, lg) if (lg) log10(v) else v
+for (k in seq_along(PAIRS)) {   # shared limits per column, from all loci
+  pr <- PAIRS[[k]]; lx <- isTRUE(pr$logx); ly <- isTRUE(pr$logy)
+  PAIRS[[k]]$xlim <- quantile(tr(p[[pr$x]], lx), c(0.002, 0.998), na.rm = TRUE)
+  PAIRS[[k]]$ylim <- quantile(tr(p[[pr$y]], ly), c(0.002, 0.998), na.rm = TRUE)
 }
-render("A3_parameter_pairs", 10, 9, function() {
-  par(mfrow = c(2, 2))
-  dens(p$gc, p$titv, "GC (model base frequencies)", "ti/tv rate ratio", "a  GC vs ti/tv",
-       note = sprintf("stripe at 0.50: %s K2P loci (equal freqs)", format(sum(p$freq == "equal"), big.mark = ",")))
-  dens(p$mean_branch_length, p$rate_cv, "tree length / branches (subs/site)", "FreeRate CV of site rates",
-       "b  Overall rate vs rate heterogeneity", logx = TRUE,
-       note = sprintf("CV = 0 for %s single-class loci", format(sum(p$k == 1), big.mark = ",")))
-  dens(p$gc, p$mean_branch_length, "GC (model base frequencies)", "tree length / branches (subs/site)",
-       "c  GC vs overall rate", logy = TRUE,
-       note = sprintf("stripe at 0.50: %s K2P loci", format(sum(p$freq == "equal"), big.mark = ",")))
-  dens(p$at_skew, p$gc_skew, "AT skew (A-T)/(A+T)", "GC skew (G-C)/(G+C)", "d  Strand composition skews",
-       note = sprintf("point at 0,0: %s K2P loci", format(sum(p$freq == "equal"), big.mark = ",")))
+dens <- function(dd, pr, first_row, last_row) {
+  lx <- isTRUE(pr$logx); ly <- isTRUE(pr$logy)
+  x <- tr(dd[[pr$x]], lx); y <- tr(dd[[pr$y]], ly)
+  ok <- is.finite(x) & is.finite(y); x <- x[ok]; y <- y[ok]
+  nb <- if (length(x) >= 10000) 60 else if (length(x) >= 3000) 40 else 28
+  bx <- seq(pr$xlim[1], pr$xlim[2], length.out = nb + 1); by <- seq(pr$ylim[1], pr$ylim[2], length.out = nb + 1)
+  h <- table(cut(x, bx, include.lowest = TRUE), cut(y, by, include.lowest = TRUE))
+  z <- log10(unclass(h)); z[!is.finite(z)] <- NA
+  base_par(mar = c(if (last_row) 3.4 else 0.8, 3.4, if (first_row) 2.2 else 0.6, 0.6))
+  plot(NA, xlim = pr$xlim, ylim = pr$ylim, axes = FALSE, xlab = "", ylab = "", xaxs = "i", yaxs = "i")
+  if (any(!is.na(z)))
+    image(head(bx, -1) + diff(bx) / 2, head(by, -1) + diff(by) / 2, z, col = seq_ramp(40)[6:40],
+          add = TRUE)
+  lab_axis <- function(side, lg, rng, labels = TRUE) {
+    at <- pretty(rng); at <- at[at >= rng[1] & at <= rng[2]]
+    axis(side, at = at, labels = if (!labels) FALSE else if (lg) signif(10^at, 2) else at, col = AXIS)
+  }
+  lab_axis(1, lx, pr$xlim, labels = last_row); lab_axis(2, ly, pr$ylim)
+  if (last_row) title(xlab = pr$xl, line = 2.2)
+  if (first_row) title(main = pr$main, adj = 0, line = 0.7)
+  r <- suppressWarnings(cor(x, y, method = "spearman"))
+  mtext(sprintf("rho %.2f", r), side = 3, line = -1, adj = 0.03, cex = 0.55, col = INK2)
+}
+A3_CLADES <- clades[table(p$clade)[clades] >= 1000]
+render("A3_parameter_pairs", 12, 2.15 * length(A3_CLADES) + 1.2, function() {
+  par(mfrow = c(length(A3_CLADES), length(PAIRS)), oma = c(0.5, 9.5, 2.6, 0.5))
+  for (cl in A3_CLADES) {
+    dd <- p[p$clade == cl, ]
+    for (k in seq_along(PAIRS)) {
+      dens(dd, PAIRS[[k]], first_row = cl == A3_CLADES[1], last_row = cl == tail(A3_CLADES, 1))
+      if (k == 1) {
+        nk <- sum(dd$freq == "equal"); n1 <- sum(dd$k == 1)
+        mtext(sprintf("%s\n%s loci\n%s K2P (GC 0.50)\n%s single-class (CV 0)", cl,
+                      format(nrow(dd), big.mark = ","), format(nk, big.mark = ","), format(n1, big.mark = ",")),
+              side = 2, line = 3, las = 1, adj = 1, cex = 0.55, col = INK2)
+      }
+    }
+  }
+  mtext(paste("Each clade's own best-model values; axes shared down each column; shading = log count within panel.",
+              "Clades with >= 1,000 loci. Model-fixed values: K2P loci sit at GC 0.50 and skews 0,0;",
+              "single-class loci at CV 0."), side = 3, outer = TRUE, line = 1, adj = 0, cex = 0.55, col = MUTED)
 })
 message("done")

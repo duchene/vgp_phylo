@@ -143,7 +143,7 @@ show how the model parameters relate to one another and differ among clades.
 - `scripts/make_model_figures.R` (no positions needed):
   - A1: best model by clade, and k by data size;
   - A2: parameter correlations, raw and partial (log tips, log sites, clade);
-  - A3: pairwise densities.
+  - A3: pairwise densities, one row per clade (≥1,000 loci) on shared axes.
 - `scripts/make_landscape_figures.R`:
   - B1: correlogram along contigs against a within-contig permutation null;
   - B2: tracks along the most locus-dense contigs;
@@ -157,6 +157,14 @@ show how the model parameters relate to one another and differ among clades.
 - **Rate per branch is clade-structured.** About 0.025 subs/site in Birds and the
   deep Vertebrates clades, against 0.06–0.09 in fishes and Anura. Pooled plots mix the
   two groups, so pairwise relationships are best read within a clade or partialled (A2b).
+- **Rate per branch also tracks taxon sampling within a clade (A3, split by clade).**
+  Squamates, AnuraAnc0 and Cartilaginous fishes each show two groups of loci. The
+  slow group (< 0.04 subs/site per branch) is the densely sampled loci: mean tips
+  197 / 273 / 235. The fast group has few tips: 41 / 22 / 16. Densely sampled trees have
+  many short branches between close relatives, so tree length / branches mostly
+  measures which species a locus contains. Before reading it as a rate, compare loci
+  with similar taxon sets, e.g. root-to-tip or path lengths between a fixed set of
+  species, from the saved branch lengths.
 - **Local similarity along ancestral contigs (B1).** In Birds every parameter is
   far more similar between neighbouring loci than the within-contig permutation
   allows. The excess decays over about 0.25–0.5 Mb. Squamates and Cartilaginous
