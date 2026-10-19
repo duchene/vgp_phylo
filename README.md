@@ -172,6 +172,31 @@ pixi run Rscript scripts/make_landscape_figures.R    # figures/model/B1-B3, D1 (
 
 What each figure shows, and the first observations, are in `docs/PLAN_genome_landscapes.md` (Step 1).
 
+## Metric <-> model links, hub variables and path analysis
+
+```bash
+sbatch --account=DeiC-KU-L04 --cpus-per-task=8 --mem=4G --time=02:00:00 \
+  --output=logs/stage0_softmask_%j.out scripts/slurm/stage0_softmask.sh   # results/stage0/locus_softmask.tsv (~25 min)
+pixi run Rscript scripts/stage0_chromosomes.R                             # results/stage0/locus_chromosome.tsv
+sbatch --account=DeiC-KU-L04 --cpus-per-task=2 --mem=24G --time=01:00:00 \
+  --output=logs/link_figures_%j.out scripts/slurm/link_figures.sh         # C1-C4, E1-E4, P1-P2 (~20 min)
+```
+
+| Figure (`figures/model/`) | Shows |
+|---|---|
+| `C1_variance_partitioning` | per model output (and per metric): variance explained by clade, data size, the other block |
+| `C2_rda_correlation_circle` | redundancy analysis of model outputs on metrics, within clade; repeated per lineage |
+| `C3_gc_links_by_lineage` | GC against sCF, ti/tv, rate-heterogeneity gain, compositional heterogeneity |
+| `C4_hub_variables` | the 6 hub variables chosen from 19 (rotated factors), and how much of each variable they cover |
+| `E1`-`E3` | hubs along ancestral contigs, as B1-B3 |
+| `E4_hubs_by_chromosome` | hubs per chicken chromosome (Birds) and per human chromosome (deep clades) against chromosome length |
+| `P1_path_diagrams`, `P2_path_effects` | recursive path model: genomic predictors -> hubs, pooled and per lineage, contig-bootstrap CIs |
+
+Shared code: `scripts/lib/link_data.R` (variables, transforms, within-clade residuals) and
+`scripts/lib/landscape.R` (the along-contig figures, also used by `make_landscape_figures.R`).
+Tables go to `results/links/` (local). Design and first observations: `docs/PLAN_genome_landscapes.md`,
+Step 1b.
+
 ## Assessing which loci are best
 
 ```bash

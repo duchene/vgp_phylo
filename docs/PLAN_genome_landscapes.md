@@ -194,6 +194,69 @@ show how the model parameters relate to one another and differ among clades.
 - **Coding score and soft-masked fraction** per locus, as covariates (Stage 0 as
   originally planned).
 
+### Step 1b, how the locus metrics and the model results link (first figures 2026-10-19)
+
+Two blocks: 12 locus metrics and 7 best-model outputs (`scripts/lib/link_data.R`). Four
+metrics that measure the same thing as a model output are left out: κ ≈ ti/tv, γ α ≈
+FreeRate CV, mean branch length ≈ ModelFinder's, and alignment GC ≈ model GC. AT and GC
+skew are dropped because they are degenerate (zero variance). "Within clade, size-free"
+means the rank residual on clade + log tips + log sites. With ~110k loci every p-value is
+≈ 0, so results are judged by effect size, by whether they replicate across lineages, and
+by contig-bootstrap intervals.
+
+**New Stage 0 covariates:** `results/stage0/locus_softmask.tsv`, the soft-masked
+(repeat) fraction pooled over sequences, and `results/stage0/locus_chromosome.tsv`,
+the chicken chromosome (+ macro/intermediate/micro class) for 63.4k loci (44.7k of 47.1k
+Birds) and the human chromosome for 10.1k loci. Both give membership only, not positions.
+
+**Figures:** C1–C4 (`scripts/make_link_figures.R`), E1–E4 (`make_hub_landscape.R`),
+P1–P2 (`make_path_analysis.R`). Run all three with `scripts/slurm/link_figures.sh`.
+
+**First observations (to be checked, not conclusions):**
+- **Clade and data size dominate several model outputs** (C1). k is mostly data size:
+  the metrics add 4% of its variance, so heterogeneity ΔBIC per site is a better response
+  than k. FreeRate CV (37% unique to the metrics) and GC (28%) are the outputs most tied
+  to the locus metrics.
+- **The links are low-dimensional** (C2). Within clade, the metrics explain 37% of
+  model-output variance, and two RDA axes carry 95% of that. RDA1 is rate heterogeneity
+  (FreeRate CV, ΔBIC, fastest-class rate ↔ low entropy, high unconstrained lnL/site).
+  RDA2 is rate and composition (rate per branch, entropy, compositional heterogeneity vs
+  sCF). Canonical r: 0.86, 0.72, 0.48.
+- **GC-rich loci have higher ti/tv and more rate heterogeneity, and lower sCF** (C3).
+  This is strongest in Birds (ρ sCF −0.65, ti/tv +0.77) and in the deep clades, weaker
+  in Squamates, and absent in Amphibians. It is consistent with GC-biased gene conversion
+  (a guess).
+- **Hubs** (C4): Kaiser factors (6, holding 70% of the variance), varimax-rotated, then
+  the most central member of each. The hubs are FreeRate CV, rate per branch, informative
+  sites/branch, GC, QIRP and CID; the largest |r| between two hubs is 0.44. They cover
+  the other variables well (R² 0.25–0.80), except root-to-tip CoV and stemminess, which
+  belong to no group.
+- **Along contigs** (E1): every hub is more similar between neighbouring loci than the
+  permutation allows, even after removing size. But log tips is also autocorrelated
+  along contigs, so part of this is shared taxon sampling.
+- **Chicken chromosomes** (E4): **the strongest genomic signal so far.** Bird loci on
+  smaller chicken chromosomes (micro) have higher GC, FreeRate CV, rate, informative sites
+  and QIRP, and lower CID. Across chromosomes, |ρ| against chromosome length is 0.77–0.97.
+  Human chromosomes in the deep clades show only GC (ρ −0.50).
+- **Path model** (P1–P2): the order is GC → rate → FreeRate CV → informative sites →
+  QIRP → CID, and the predictors are contig span, distance to contig end, soft-masked
+  fraction and chicken chromosome length.
+  - GC → FreeRate CV (+0.5 to +0.67) and rate → FreeRate CV (−0.37 to −0.72) are the
+    largest paths in every lineage.
+  - Soft-masked fraction lowers GC (pooled −0.30, Birds −0.49), but raises it in
+    Cartilaginous fishes (+0.16).
+  - In Birds, chicken chromosome length acts mostly through GC: total effect on FreeRate
+    CV −0.26, about half of it indirect.
+  - **Distance to the contig end has almost no effect** (no direct path above |0.05|,
+    largest total −0.06) once clade, size
+    and the other predictors are in the model. Its raw trends in Squamates (E3) are
+    explained by the other variables.
+  - R² is low for rate (0.03–0.26), QIRP and CID: most of their within-clade variance is
+    not explained by these variables.
+- Caveats: the model is saturated, so it is a decomposition under an assumed order, not a
+  test of that order. Chromosome membership comes from chicken alone. Contigs are not
+  chromosomes, so "contig end" is the outermost locus, not a telomere.
+
 ### Later: Stage 1 pilot + Stage 0, on the panel
 
 Do these in order; everything runs through Slurm on the panel first.
