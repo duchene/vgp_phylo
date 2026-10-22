@@ -208,7 +208,7 @@ Rscript scripts/make_figures.R      # ~1.5 min; writes figures/ and results/locu
 | `fig1_clade_confound` | variance in each metric explained by clade — **read this first** |
 | `fig2_metric_redundancy` | clustered Spearman correlations; which metrics are near-duplicates |
 | `fig3_pca_axes` | scree + loadings on PC1–PC4 |
-| `fig4_tradeoff` | six density panels showing metrics disagree about what "good" means |
+| `fig4_tradeoff` | eight density panels, within clade: metrics disagree about what "good" means; bottom row QIRP against four other axes |
 | `fig5_locus_quality` | composite score, by lineage, standardisation check, selection |
 
 **The governing result: clade explains 21–69% of each metric, and R² = 0.71 for PC1.**
@@ -216,11 +216,24 @@ Loci therefore cannot be ranked globally — a global ranking mostly recovers wh
 ancestral reference the locus came from. Everything in `locus_quality.tsv` is
 standardised **within clade** for this reason.
 
-**The trade-off is real, not noise.** Long branches buy informative sites
-(ρ = +0.62) and predicted power (QIRP, ρ = +0.70) but cost per-site concordance
-(sCF, ρ = −0.72). Short branches give clean sites but unresolved topologies
-(higher CID). No single metric identifies "the best loci"; the composite is one
+**The trade-off is real, not noise, and it survives within clade.** Long branches
+buy informative sites (ρ = +0.62) and predicted power (QIRP, ρ = +0.70) but cost
+per-site concordance (sCF, ρ = −0.72), pooled. Figure 4 shows the same pairs
+within clade (robust z per clade; CID as a within-clade percentile, since it is
+discrete on small trees). There, branch length vs sCF is ρ = −0.55 (−0.46 after
+also removing log tips and log sites), between −0.45 and −0.66 in every lineage.
+Informative sites vs sCF is −0.45. Short branches give clean sites but unresolved
+topologies. No single metric identifies "the best loci"; the composite is one
 defensible compromise, not the answer.
+
+**QIRP is mostly divergence, within clade.** Pooled, QIRP vs CID is ρ = −0.60;
+within clade it is only −0.27 (−0.17 in Birds, sharks and the deep clades, about
+−0.43 in Squamates and Amphibians). The rest was clade differences. Within clade
+QIRP tracks mean branch length (+0.39), so it carries the divergence trade-off:
+slightly lower sCF (−0.26) and slightly higher compositional heterogeneity
+(+0.16). It is nearly independent of Holland δ (−0.10). Read it as expected
+resolving power from the gene tree's own branch lengths, not as accuracy.
+`make_figures.R` logs the within-clade ρ of every panel per lineage.
 
 `locus_quality.tsv` columns: `quality` (mean of 8 signed within-clade robust
 z-scores), `rank_within_clade`, `good_on_all_axes` (beats its clade median on all 8

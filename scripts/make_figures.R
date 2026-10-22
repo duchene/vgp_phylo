@@ -208,10 +208,30 @@ render("fig3_pca_axes", 9.5, 4.6, function() {
 
 # ============================================================== FIG 4 ==========
 ## The trade-off that makes "best" non-obvious: per-site concordance and
-## informativeness pull in opposite directions along divergence. 112k points, so
-## density (sequential ramp), not a scatter -- and faceted by lineage, because
-## colour cannot carry 7 categories in a scatter.
-message("fig 4: trade-off")
+## informativeness pull in opposite directions along divergence. Shown WITHIN
+## clade (figure 1's finding): each metric is a robust z on its own clade, so the
+## density is the trade-off among comparable loci, not the gap between clades.
+## Row 2 asks how much of QIRP is anything beyond branch length.
+## 112k points, so density (sequential ramp), not a scatter.
+message("fig 4: trade-off, within clade")
+wz <- function(u) {                 # robust z within clade: (x - median) / MAD
+  ave(u, clade, FUN = function(v) {
+    sc <- mad(v); if (!is.finite(sc) || sc == 0) sc <- sd(v)
+    if (!is.finite(sc) || sc == 0) return(v * 0)
+    (v - median(v)) / sc
+  })
+}
+## rank residual on clade + log tips + log sites, for the size-free rho
+nt <- log(d$ntips[ok]); ns <- log(d$nsites[ok])
+sz <- function(u) resid(lm(rank(u) ~ clade + nt + ns))
+W  <- as.data.frame(lapply(Xc, wz), check.names = FALSE)
+## CID is discrete on small trees and some clades have a tiny MAD, so its z bands
+## into stripes; use the within-clade percentile instead.
+PCT <- "CID vs species tree"
+W[[PCT]] <- 100 * ave(Xc[[PCT]], clade, FUN = function(v) (rank(v) - 0.5) / length(v))
+S  <- as.data.frame(lapply(Xc, sz), check.names = FALSE)
+lim <- function(u) quantile(u, c(0.005, 0.995))
+## raw-scale density panel, also used by figure 5
 den_panel <- function(x, y, xlab, ylab, main, sub = NULL) {
   fin <- is.finite(x) & is.finite(y)
   smoothScatter(x[fin], y[fin], colramp = seq_ramp, nrpoints = 0,
@@ -222,26 +242,46 @@ den_panel <- function(x, y, xlab, ylab, main, sub = NULL) {
   legend("topright", legend = sprintf("rho = %+.2f", rho), bty = "n",
          cex = 0.68, text.col = INK2)
 }
-render("fig4_tradeoff", 10, 6.6, function() {
-  base_par(mfrow = c(2, 3), mar = c(3.8, 3.9, 3.0, 1.2), oma = c(2.2, 0, 2.0, 0))
-  den_panel(Xc[["mean branch length"]], Xc[["sCF mean"]],
-            "mean branch length", "sCF mean", "Divergence vs per-site concordance")
-  den_panel(Xc[["informative sites/branch"]], Xc[["sCF mean"]],
-            "informative sites per branch", "sCF mean", "Information vs concordance")
-  den_panel(Xc[["QIRP (P correct)"]], Xc[["CID vs species tree"]],
-            "QIRP (P correct)", "CID vs species tree", "Predicted power vs reference agreement")
-  den_panel(Xc[["QIRP (P correct)"]], Xc[["QIHP (P incorrect)"]],
-            "QIRP (P correct)", "QIHP (P incorrect)", "Power vs misleading signal")
-  den_panel(Xc[["Holland delta"]], Xc[["CID vs species tree"]],
-            "Holland delta (reticulation)", "CID vs species tree", "Treelikeness vs reference agreement")
-  den_panel(Xc[["compositional het."]], Xc[["site entropy"]],
-            expression(log[10] * " compositional heterogeneity"), "site entropy",
-            "Composition vs saturation")
-  mtext("Metrics disagree about what a good locus looks like", outer = TRUE, line = 0.4,
-        cex = 0.95, col = INK, font = 2)
-  mtext(paste("Shading = locus density (n = 112,199). Long branches buy informative sites and predicted power,",
-              "but cost per-site concordance."),
-        outer = TRUE, side = 1, line = 0.6, cex = 0.68, col = INK2)
+## the same on within-clade z, with the size-free rho beside it
+zden_panel <- function(kx, ky, xlab, ylab, main) {
+  x <- W[[kx]]; y <- W[[ky]]
+  smoothScatter(x, y, colramp = seq_ramp, nrpoints = 0, xlim = lim(x), ylim = lim(y),
+                xlab = xlab, ylab = ylab, main = main)
+  abline(h = 0, v = 0, col = GRID, lwd = 0.6)
+  box(col = AXIS, lwd = 0.6)
+  r_w <- cor(x, y, method = "spearman")
+  r_s <- cor(S[[kx]], S[[ky]])
+  legend("topright", legend = c(sprintf("within clade  rho = %+.2f", r_w),
+                                sprintf("+ size-free   rho = %+.2f", r_s)),
+         bty = "o", bg = adjustcolor(SURF, 0.85), box.col = NA, cex = 0.62, text.col = INK2)
+}
+zl <- function(k) paste0(k, if (k == PCT) "  (percentile in clade)" else "  (z in clade)")
+tradeoff_pairs <- list(
+  c("mean branch length",       "sCF mean",            "Divergence vs per-site concordance"),
+  c("informative sites/branch", "sCF mean",            "Information vs concordance"),
+  c("QIRP (P correct)",         "CID vs species tree", "Predicted power vs reference agreement"),
+  c("Holland delta",            "CID vs species tree", "Treelikeness vs reference agreement"),
+  c("QIRP (P correct)",         "sCF mean",            "Predicted power vs per-site concordance"),
+  c("QIRP (P correct)",         "compositional het.", "Predicted power vs composition"),
+  c("QIRP (P correct)",         "Holland delta",       "Predicted power vs reticulation"),
+  c("QIRP (P correct)",         "mean branch length",  "Predicted power vs divergence"))
+## per-lineage within-clade rho, to the log, so the pooled panels can be checked
+for (pr in tradeoff_pairs) {
+  r <- vapply(split(seq_along(lin), lin), function(i)
+    cor(W[[pr[1]]][i], W[[pr[2]]][i], method = "spearman"), numeric(1))
+  message(sprintf("  %-26s ~ %-20s %s", pr[1], pr[2],
+                  paste(sprintf("%s %+.2f", substr(names(r), 1, 5), r), collapse = "  ")))
+}
+render("fig4_tradeoff", 13, 6.8, function() {
+  base_par(mfrow = c(2, 4), mar = c(3.8, 3.9, 3.0, 1.0), oma = c(2.2, 0, 2.0, 0))
+  for (pr in tradeoff_pairs) zden_panel(pr[1], pr[2], zl(pr[1]), zl(pr[2]), pr[3])
+  mtext("Metrics disagree about what a good locus looks like, within clade", outer = TRUE,
+        line = 0.4, cex = 0.95, col = INK, font = 2)
+  mtext(paste("Axes: robust z within clade ((x - median) / MAD), CID as percentile within clade;",
+              "shading = locus density (n = 112,199),",
+              "central 99% shown. Size-free rho: rank residual on clade + log tips + log sites.",
+              "Bottom row: QIRP against four other axes."),
+        outer = TRUE, side = 1, line = 0.6, cex = 0.62, col = INK2)
 })
 
 # ============================================================== FIG 5 ==========
