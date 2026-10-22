@@ -208,7 +208,7 @@ Rscript scripts/make_figures.R      # ~1.5 min; writes figures/ and results/locu
 | `fig1_clade_confound` | variance in each metric explained by clade — **read this first** |
 | `fig2_metric_redundancy` | clustered Spearman correlations; which metrics are near-duplicates |
 | `fig3_pca_axes` | scree + loadings on PC1–PC4 |
-| `fig4_tradeoff` | eight density panels, within clade: metrics disagree about what "good" means; bottom row QIRP against four other axes |
+| `fig4_tradeoff` | the divergence trade-off within clade, per lineage: branch length and informative sites vs sCF, QIRP vs branch length (other pairs logged) |
 | `fig5_locus_quality` | composite score, by lineage, standardisation check, selection |
 
 **The governing result: clade explains 21–69% of each metric, and R² = 0.71 for PC1.**
@@ -218,8 +218,8 @@ standardised **within clade** for this reason.
 
 **The trade-off is real, not noise, and it survives within clade.** Long branches
 buy informative sites (ρ = +0.62) and predicted power (QIRP, ρ = +0.70) but cost
-per-site concordance (sCF, ρ = −0.72), pooled. Figure 4 shows the same pairs
-within clade (robust z per clade; CID as a within-clade percentile, since it is
+per-site concordance (sCF, ρ = −0.72), pooled. Figure 4 shows them
+within clade, per lineage (robust z per clade; CID as a within-clade percentile, since it is
 discrete on small trees). There, branch length vs sCF is ρ = −0.55 (−0.46 after
 also removing log tips and log sites), between −0.45 and −0.66 in every lineage.
 Informative sites vs sCF is −0.45. Short branches give clean sites but unresolved

@@ -272,16 +272,38 @@ for (pr in tradeoff_pairs) {
   message(sprintf("  %-26s ~ %-20s %s", pr[1], pr[2],
                   paste(sprintf("%s %+.2f", substr(names(r), 1, 5), r), collapse = "  ")))
 }
-render("fig4_tradeoff", 13, 6.8, function() {
-  base_par(mfrow = c(2, 4), mar = c(3.8, 3.9, 3.0, 1.0), oma = c(2.2, 0, 2.0, 0))
-  for (pr in tradeoff_pairs) zden_panel(pr[1], pr[2], zl(pr[1]), zl(pr[2]), pr[3])
-  mtext("Metrics disagree about what a good locus looks like, within clade", outer = TRUE,
-        line = 0.4, cex = 0.95, col = INK, font = 2)
-  mtext(paste("Axes: robust z within clade ((x - median) / MAD), CID as percentile within clade;",
-              "shading = locus density (n = 112,199),",
-              "central 99% shown. Size-free rho: rank residual on clade + log tips + log sites.",
-              "Bottom row: QIRP against four other axes."),
-        outer = TRUE, side = 1, line = 0.6, cex = 0.62, col = INK2)
+## Drawn: the three pairs that carry the trade-off, one column per lineage (the
+## other pairs are only logged above). Size-free rho is refitted within lineage.
+fig4_pairs <- tradeoff_pairs[c(1, 2, 8)]
+fig4_lin <- LIN[LIN %in% names(which(table(lin) >= 1000))]
+render("fig4_tradeoff", 15, 7.6, function() {
+  base_par(mfrow = c(length(fig4_pairs), length(fig4_lin)), mar = c(3.4, 3.6, 1.2, 0.6),
+           oma = c(2.4, 2.2, 4.2, 0))
+  for (pr in fig4_pairs) {
+    xl <- lim(W[[pr[1]]]); yl <- lim(W[[pr[2]]])
+    for (L in fig4_lin) {
+      i <- lin == L; x <- W[[pr[1]]][i]; y <- W[[pr[2]]][i]
+      smoothScatter(x, y, colramp = seq_ramp, nrpoints = 0, xlim = xl, ylim = yl,
+                    xlab = zl(pr[1]), ylab = if (L == fig4_lin[1]) zl(pr[2]) else "")
+      abline(h = 0, v = 0, col = GRID, lwd = 0.6)
+      box(col = AXIS, lwd = 0.6)
+      if (pr[1] == fig4_pairs[[1]][1])
+        mtext(sprintf("%s  (n = %s)", L, format(sum(i), big.mark = ",")),
+              side = 3, line = 0.4, cex = 0.7, col = INK, font = 2)
+      cl <- clade[i]; nti <- nt[i]; nsi <- ns[i]
+      szi <- function(u) resid(if (length(unique(cl)) > 1) lm(rank(u) ~ cl + nti + nsi)
+                               else lm(rank(u) ~ nti + nsi))
+      r_s <- cor(szi(Xc[[pr[1]]][i]), szi(Xc[[pr[2]]][i]))
+      legend("topright", legend = c(sprintf("rho %+.2f", cor(x, y, method = "spearman")),
+                                    sprintf("size-free %+.2f", r_s)),
+             bty = "o", bg = adjustcolor(SURF, 0.85), box.col = NA, cex = 0.6, text.col = INK2)
+    }
+  }
+  mtext("Divergence buys information and predicted power but costs per-site concordance, in every lineage",
+        outer = TRUE, line = 2.2, cex = 0.95, col = INK, font = 2)
+  mtext(paste("Axes: robust z within clade ((x - median) / MAD), shared per row; central 99% shown;",
+              "shading = locus density. Size-free rho: rank residual on clade + log tips + log sites, within lineage."),
+        outer = TRUE, side = 1, line = 0.9, cex = 0.62, col = INK2)
 })
 
 # ============================================================== FIG 5 ==========
